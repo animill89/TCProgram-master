@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>程星AI · 群聊出行智能规划 PRD v1.1</title>
+<style>
+:root{
+  --primary:#0EA5A0;--primary-dark:#0D8C88;--primary-light:#E6F7F6;
+  --accent:#FF6B35;--accent-light:#FFF3EE;
+  --text:#1A1A2E;--text2:#4A4A68;--text3:#8A8AA0;
+  --bg:#F7F8FA;--card:#fff;--border:#E8E8EF;
+  --success:#22C55E;--warning:#F59E0B;--danger:#EF4444;--info:#3B82F6;
+  --radius:12px;--shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;font-size:15px}
+.doc{max-width:960px;margin:0 auto;padding:40px 32px 80px}
+.doc-header{text-align:center;padding:48px 0 40px;border-bottom:2px solid var(--primary);margin-bottom:40px}
+.doc-header .tag{display:inline-block;background:var(--primary-light);color:var(--primary);padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:16px}
+.doc-header h1{font-size:30px;font-weight:800;color:var(--text);margin-bottom:8px;letter-spacing:-0.5px}
+.doc-header .sub{color:var(--text3);font-size:14px}
+.doc-header .meta{margin-top:20px;display:flex;justify-content:center;gap:24px;font-size:13px;color:var(--text3);flex-wrap:wrap}
+.toc{background:var(--card);border-radius:var(--radius);padding:24px 28px;margin-bottom:36px;box-shadow:var(--shadow)}
+.toc h3{font-size:15px;color:var(--text3);margin-bottom:12px;font-weight:600}
+.toc ol{padding-left:20px;color:var(--text2)}
+.toc li{margin:4px 0;font-size:14px}
+.toc a{color:var(--primary);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.section{background:var(--card);border-radius:var(--radius);padding:28px 32px;margin-bottom:24px;box-shadow:var(--shadow)}
+.section h2{font-size:20px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--bg);display:flex;align-items:center;gap:8px}
+.section h2 .num{background:var(--primary);color:#fff;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.section h3{font-size:16px;font-weight:600;margin:24px 0 10px;color:var(--text)}
+.section h4{font-size:15px;font-weight:600;margin:16px 0 8px;color:var(--text2)}
+.section p{margin:8px 0;color:var(--text2)}
+.section ul,.section ol{padding-left:20px;margin:8px 0;color:var(--text2)}
+.section li{margin:4px 0}
+.box{border-radius:10px;padding:16px 20px;margin:14px 0;font-size:14px}
+.box-primary{background:var(--primary-light);border-left:4px solid var(--primary)}
+.box-accent{background:var(--accent-light);border-left:4px solid var(--accent)}
+.box-warning{background:#FEF3C7;border-left:4px solid var(--warning)}
+.box-danger{background:#FEE2E2;border-left:4px solid var(--danger)}
+.box-info{background:#EFF6FF;border-left:4px solid var(--info)}
+.box strong{color:var(--text)}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th{background:var(--bg);font-weight:600;text-align:left;padding:10px 12px;color:var(--text);border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+tr:hover td{background:#FAFBFC}
+.p0{color:var(--danger);font-weight:700}
+.p1{color:var(--warning);font-weight:600}
+.p2{color:var(--text3)}
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:16px 0}
+.flow-step{background:var(--primary-light);color:var(--primary-dark);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;white-space:nowrap}
+.flow-step.main{background:var(--primary);color:#fff}
+.flow-step.decision{background:var(--accent-light);color:var(--accent);border:1px dashed var(--accent)}
+.flow-step.fallback{background:#F0F0F5;color:var(--text3)}
+.flow-arrow{color:var(--text3);font-size:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:14px 0}
+.mini-card{background:var(--bg);border-radius:10px;padding:16px}
+.mini-card h4{margin:0 0 6px;font-size:14px;color:var(--text)}
+.mini-card p{font-size:13px;margin:0;color:var(--text3)}
+.mini-card .icon{font-size:24px;margin-bottom:6px}
+.persona-tag{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600}
+.persona-tag.a{border-color:#FF6B35;color:#FF6B35;background:#FFF3EE}
+.persona-tag.b{border-color:#8B5CF6;color:#8B5CF6;background:#F5F3FF}
+.persona-tag.c{border-color:#0EA5A0;color:#0EA5A0;background:#E6F7F6}
+.persona-tag.d{border-color:#EC4899;color:#EC4899;background:#FDF2F8}
+.persona-tag.e{border-color:#3B82F6;color:#3B82F6;background:#EFF6FF}
+.metric-row{display:flex;gap:16px;margin:16px 0}
+.metric{flex:1;text-align:center;background:var(--bg);border-radius:10px;padding:16px}
+.metric .val{font-size:26px;font-weight:800;color:var(--primary)}
+.metric .label{font-size:12px;color:var(--text3);margin-top:4px}
+.compare-table th:first-child{width:120px}
+.plan-card{border:2px solid var(--border);border-radius:12px;padding:20px;margin:12px 0;position:relative;transition:all .2s}
+.plan-card.recommended{border-color:var(--primary);background:linear-gradient(135deg,#fff 0%,#F0FBFA 100%)}
+.plan-card h4{margin:0 0 8px;font-size:16px;display:flex;align-items:center;gap:8px}
+.plan-card .price{font-size:24px;font-weight:800;color:var(--accent)}
+.plan-card .price small{font-size:13px;font-weight:400;color:var(--text3)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.badge-rec{background:var(--primary);color:#fff}
+.badge-hot{background:var(--accent);color:#fff}
+.tech-note{background:#F8F9FB;border:1px dashed var(--border);border-radius:8px;padding:12px 16px;margin:12px 0;font-size:13px;color:var(--text2)}
+.tech-note code{background:#E8E8EF;padding:1px 6px;border-radius:3px;font-size:12px;font-family:Menlo,monospace;color:var(--primary-dark)}
+.state-machine{background:var(--bg);border-radius:10px;padding:20px;margin:14px 0;font-size:13px}
+.state-machine .state{display:inline-block;background:#fff;border:2px solid var(--primary);color:var(--primary);padding:6px 14px;border-radius:8px;font-weight:600;margin:4px}
+.state-machine .state.active{background:var(--primary);color:#fff}
+.state-machine .state.final{border-color:var(--accent);color:var(--accent)}
+.state-machine .state.final.active{background:var(--accent);color:#fff}
+.state-machine .arrow{color:var(--text3);margin:0 4px}
+.demo-box{background:linear-gradient(135deg,#1A1A2E 0%,#2D2D44 100%);color:#E8E8F0;border-radius:12px;padding:20px;margin:14px 0;font-size:13px;line-height:1.8}
+.demo-box .chat-msg{margin:6px 0}
+.demo-box .chat-name{font-weight:700;margin-right:6px}
+.demo-box .ai-msg{background:rgba(14,165,160,0.15);border-left:3px solid var(--primary);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0}
+.demo-box .user-msg{background:rgba(255,107,53,0.15);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--primary);color:#fff;border-radius:50%;font-size:12px;font-weight:700;margin-right:6px;flex-shrink:0}
+@media(max-width:640px){
+  .doc{padding:20px 16px 60px}
+  .section{padding:20px}
+  .grid2,.grid3,.metric-row{grid-template-columns:1fr}
+  .doc-header h1{font-size:22px}
+}
+@media print{
+  body{background:#fff;font-size:12px}
+  .doc{max-width:100%;padding:0}
+  .section{box-shadow:none;break-inside:avoid;border:1px solid #ddd}
+}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<div class="doc-header">
+  <div class="tag">同程旅行 · 程星AI · PRD</div>
+  <h1>群聊出行智能规划 — 对话式分步规划与多人投票</h1>
+  <div class="sub">转发群聊 → AI识别要素 → 分步推荐交通/酒店/景点 → ABC方案+人均均摊 → 投票 → 一键预订</div>
+  <div class="meta">
+    <span>📋 PRD v1.1（新增费用均摊）</span>
+    <span>👤 住宿产品中心</span>
+    <span>📅 2026-08-26</span>
+    <span>🔒 内部文档</span>
+  </div>
+</div>
+
+<div class="box box-accent" style="margin-bottom:28px">
+  <strong>🆕 v1.1 增量说明</strong><br>
+  v1.0中"费用均摊/AA计算"原列在Out of Scope（V1.5），v1.1将其提前纳入V1.0范围：在ABC方案生成后、发起投票前，自动计算<strong>每人应付金额明细</strong>，并在方案卡片、投票H5、预订清单中显性展示人均价。新增6.6.4「费用均摊计算」、6.6.5「人均明细展示」两个小节，同步更新功能需求、功能范围、埋点、性能、风险、待确认事项。
+</div>
+
+<div class="toc">
+  <h3>📑 目录</h3>
+  <ol>
+    <li><a href="#s1">项目背景</a></li>
+    <li><a href="#s2">需求概述</a></li>
+    <li><a href="#s3">用户需求与功能需求</a></li>
+    <li><a href="#s4">业务流程</a></li>
+    <li><a href="#s5">功能范围</a></li>
+    <li><a href="#s6">功能设计</a></li>
+    <li><a href="#s7">数据埋点</a></li>
+    <li><a href="#s8">性能指标</a></li>
+    <li><a href="#s9">风险与异常</a></li>
+    <li><a href="#s10">待确认事项</a></li>
+  </ol>
+</div>
+
+<!-- 1 -->
+<div class="section" id="s1">
+  <h2><span class="num">1</span>项目背景</h2>
+
+  <h3>1.1 产品定位</h3>
+  <div class="box box-primary">
+    <strong>一句话定位：</strong>程星AI新增"群聊出行分步规划"能力——用户将微信群聊讨论转发到同程App后，AI自动识别出行要素，并以<strong>对话式分步引导</strong>的方式依次推荐大交通、酒店、景点，每步给出推荐理由并支持即时预订；全部选定后整合生成ABC三套方案，<strong>自动计算人均均摊价格</strong>，通过H5投票收集群友意见，最终生成一键预订方案。
+  </div>
+
+  <h3>1.2 业务目标</h3>
+  <table>
+    <tr><th>目标</th><th>衡量指标</th><th>目标值</th></tr>
+    <tr><td>验证群聊→方案核心链路</td><td>导入→方案生成转化率</td><td>≥25%</td></tr>
+    <tr><td>驱动交易转化</td><td>方案→下单转化率</td><td>≥15%</td></tr>
+    <tr><td>提升跨品类交叉销售</td><td>方案中交通+酒店+门票三品类同时预订占比</td><td>≥30%</td></tr>
+    <tr><td>建立多人协作心智</td><td>方案H5分享率/投票参与率</td><td>分享率≥30%/投票率≥60%</td></tr>
+  </table>
+
+  <h3>1.3 核心价值</h3>
+  <div class="grid3">
+    <div class="mini-card">
+      <div class="icon">🧭</div>
+      <h4>分步引导不遗漏</h4>
+      <p>交通→酒店→景点依次推进，每步AI基于群聊偏好给出推荐，不像一次性大方案让用户信息过载</p>
+    </div>
+    <div class="mini-card">
+      <div class="icon">👥</div>
+      <h4>偏好归因到人</h4>
+      <p>AI识别"谁想坐飞机、谁想住外滩"，推荐时引用群友原话，让每个人的意见被看见</p>
+    </div>
+    <div class="mini-card">
+      <div class="icon">🗳️</div>
+      <h4>投票代替扯皮</h4>
+      <p>ABC方案+H5投票，组织者不用反复@人确认，群友点一下就行，投票结果直接驱动下单</p>
+    </div>
+  </div>
+
+  <h3>1.4 应用场景</h3>
+  <p>以5人朋友团国庆出游为典型场景贯穿全文：</p>
+  <div class="demo-box">
+    <div class="chat-msg"><span class="chat-name" style="color:#FF6B35">A</span>国庆去上海玩吧！我查了机票还行</div>
+    <div class="chat-msg"><span class="chat-name" style="color:#3B82F6">E</span>高铁吧，飞机延误怕了</div>
+    <div class="chat-msg"><span class="chat-name" style="color:#8B5CF6">B</span>我要去迪士尼乐园！！</div>
+    <div class="chat-msg"><span class="chat-name" style="color:#0EA5A0">C</span>住外滩附近吧，晚上能逛</div>
+    <div class="chat-msg"><span class="chat-name" style="color:#EC4899">D</span>我想住迪士尼附近，第二天不用早起</div>
+    <div class="chat-msg"><span class="chat-name" style="color:#3B82F6">E</span>我觉得住虹桥火车站附近方便，返程近</div>
+    <div class="chat-msg"><span class="chat-name" style="color:#FF6B35">A</span>那就本周六出发，周一回来，3天2夜</div>
+  </div>
+  <p>群聊中7个人的偏好散落在对话里，组织者需要逐一记录、分别查询、再协调统一——这正是本功能要解决的问题。</p>
+</div>
+
+<!-- 2 -->
+<div class="section" id="s2">
+  <h2><span class="num">2</span>需求概述</h2>
+
+  <h3>2.1 用户痛点</h3>
+  <table>
+    <tr><th>痛点</th><th>具体表现</th><th>严重程度</th></tr>
+    <tr><td>群聊信息散落</td><td>5-8人的出行讨论可能产生几十上百条消息，组织者要逐条翻看记录每个人的偏好</td><td style="color:var(--danger);font-weight:700">高</td></tr>
+    <tr><td>偏好冲突难协调</td><td>有人想飞、有人想坐高铁；有人想住外滩、有人想住迪士尼，组织者无法同时满足所有人</td><td style="color:var(--danger);font-weight:700">高</td></tr>
+    <tr><td>多品类查询繁琐</td><td>要分别打开机票/火车票、酒店、门票三个频道查询比价，再手动汇总</td><td style="color:var(--warning);font-weight:600">中</td></tr>
+    <tr><td>方案确认效率低</td><td>做好方案发群里，有人不回、有人改主意，组织者反复@人确认耗时数天</td><td style="color:var(--warning);font-weight:600">中</td></tr>
+    <tr><td>预订分散易遗漏</td><td>交通、酒店、门票分开下单，容易漏订或时间冲突</td><td style="color:var(--warning);font-weight:600">中</td></tr>
+  </table>
+
+  <h3>2.2 业务价值</h3>
+  <ul>
+    <li><strong>用户价值：</strong>从"群聊讨论→手动整理→分别查询→反复确认→分散下单"的5步繁琐流程，压缩为"转发→确认→分步推荐→投票→一键预订"的线性流程</li>
+    <li><strong>商业价值：</strong>单次规划触达交通+酒店+门票三个品类，交叉销售机会显著；投票H5形成社交裂变，参与者回流同程</li>
+    <li><strong>差异化价值：</strong>竞品（飞猪帮帮、腾讯元宝）均无"分步推荐+偏好归因+投票决策"的完整闭环</li>
+  </ul>
+
+  <h3>2.3 版本范围</h3>
+  <div class="box box-accent">
+    <strong>V1.0 核心范围：</strong>App转发接收 → AI识别要素（人数/日期/城市/个人偏好） → 对话式三步推荐（交通→酒店→景点） → ABC方案生成<strong>+人均均摊计算</strong> → H5投票（含人均价展示）→ 一键预订方案生成。<br>
+    <strong>不含：</strong>机票预订（火车票P0，机票仅展示对比）、小程序截图OCR入口（见产品方案v1.1，本PRD聚焦App主路径）、AA账单收款/结算跟踪（V1.5）。
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="section" id="s3">
+  <h2><span class="num">3</span>用户需求与功能需求</h2>
+
+  <h3>3.1 目标用户</h3>
+  <div class="grid2">
+    <div class="mini-card">
+      <h4>👩‍💼 组织者（核心用户）</h4>
+      <p>群聊中发起旅行讨论的人，负责收集偏好、做方案、协调确认、最终下单。需要最高效的工具完成"从讨论到预订"全流程。</p>
+    </div>
+    <div class="mini-card">
+      <h4>👨‍👩‍👧 参与者（投票用户）</h4>
+      <p>群聊中表达偏好的人，不主动做方案但需要参与决策。通过H5投票页面查看ABC方案并投票，无需下载App。</p>
+    </div>
+  </div>
+
+  <h3>3.2 功能需求列表</h3>
+  <table>
+    <tr><th>模块</th><th>需求</th><th>优先级</th><th>依赖</th></tr>
+    <tr><td rowspan="3"><strong>导入与识别</strong></td><td>App端Share Extension接收微信转发文本，自动打开程星AI</td><td class="p0">P0</td><td>App客户端</td></tr>
+    <tr><td>AI识别必要信息：人数、日期、出发城市、目的城市</td><td class="p0">P0</td><td>NLP服务</td></tr>
+    <tr><td>AI识别个人偏好并归因到具体发言人：交通偏好、住宿位置偏好、景点意向</td><td class="p0">P0</td><td>NLP服务</td></tr>
+    <tr><td rowspan="2"><strong>信息确认</strong></td><td>结构化确认卡片展示识别结果，支持逐项编辑</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td>信息缺失时对话式追问（一次一个问题）</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td rowspan="5"><strong>分步推荐</strong></td><td>Step1 大交通：同时查询机票和火车票，对比展示并给出AI推荐</td><td class="p0">P0</td><td>机票/火车票接口</td></tr>
+    <tr><td>每步推荐后提供"去预订"和"继续看看"双分支</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td>Step2 酒店：按群聊中不同位置偏好分别查询，展示最近3家/位置，AI推荐1家</td><td class="p0">P0</td><td>酒店搜索接口</td></tr>
+    <tr><td>Step3 景点：根据群聊景点意向推荐对应门票卡片</td><td class="p0">P0</td><td>门票接口</td></tr>
+    <tr><td>推荐理由引用群友原话，说明推荐依据</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td rowspan="5"><strong>方案与投票</strong></td><td>整合三步选择生成ABC三套差异化方案</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td><strong>自动计算每套方案的人均均摊价格</strong>（默认按人头均摊）</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td><strong>展示每人应付明细</strong>（交通+酒店+门票分项金额+合计）</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td>生成可分享的投票H5页面，支持群友投票（H5中同步展示人均价）</td><td class="p0">P0</td><td>H5前端/后端</td></tr>
+    <tr><td>投票结果实时统计，组织者可查看投票详情</td><td class="p0">P0</td><td>—</td></tr>
+    <tr><td rowspan="2"><strong>一键预订</strong></td><td>投票结束后，根据胜出方案生成一键预订方案</td><td class="p0">P0</td><td>交易链路</td></tr>
+    <tr><td>支持交通/酒店/门票分别跳转同程对应交易页完成预订</td><td class="p0">P0</td><td>各业务线</td></tr>
+  </table>
+
+  <h3>3.3 依赖关系</h3>
+  <div class="flow">
+    <div class="flow-step main">导入识别</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">信息确认</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">交通推荐</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">酒店推荐</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">景点推荐</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">ABC方案</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">H5投票</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">一键预订</div>
+  </div>
+  <p>各步骤为<strong>强依赖串行关系</strong>：前一步未完成不进入下一步。但用户可在任意步骤选择"去预订"提前结束规划，直接进入该品类交易链路；也可在方案生成前随时通过对话调整已有选择。</p>
+</div>
+
+<!-- 4 -->
+<div class="section" id="s4">
+  <h2><span class="num">4</span>业务流程</h2>
+
+  <h3>4.1 整体流程（主流程）</h3>
+  <div class="flow">
+    <div class="flow-step main">①微信群聊多选转发</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">②同程App自动打开程星AI</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">③AI解析识别要素+偏好</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">④确认卡片</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">⑤Step1交通推荐</div><span class="flow-arrow">→</span>
+    <div class="flow-step decision">去预订/继续?</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">⑥Step2酒店推荐</div><span class="flow-arrow">→</span>
+    <div class="flow-step decision">去预订/继续?</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">⑦Step3景点推荐</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">⑧生成ABC方案</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">⑨H5投票</div><span class="flow-arrow">→</span>
+    <div class="flow-step main">⑩一键预订</div>
+  </div>
+
+  <h3>4.2 分步推荐状态机</h3>
+  <div class="state-machine">
+    <div class="state active">IMPORTING</div><span class="arrow">→</span>
+    <div class="state">CONFIRMING</div><span class="arrow">→</span>
+    <div class="state">TRANSPORT</div><span class="arrow">→</span>
+    <div class="state">HOTEL</div><span class="arrow">→</span>
+    <div class="state">ATTRACTION</div><span class="arrow">→</span>
+    <div class="state">PLAN_GEN</div><span class="arrow">→</span>
+    <div class="state">VOTING</div><span class="arrow">→</span>
+    <div class="state final active">BOOKING</div>
+  </div>
+  <table>
+    <tr><th>状态</th><th>说明</th><th>用户可执行操作</th></tr>
+    <tr><td>IMPORTING</td><td>正在接收/解析转发文本</td><td>等待（显示解析进度）</td></tr>
+    <tr><td>CONFIRMING</td><td>展示识别结果确认卡片</td><td>确认/编辑/补充信息</td></tr>
+    <tr><td>TRANSPORT</td><td>展示机票vs火车票对比推荐</td><td>选择交通方式/去预订/继续</td></tr>
+    <tr><td>HOTEL</td><td>按位置偏好展示酒店推荐</td><td>选择酒店/去预订/继续</td></tr>
+    <tr><td>ATTRACTION</td><td>展示景点门票推荐</td><td>选择门票/去预订/继续</td></tr>
+    <tr><td>PLAN_GEN</td><td>整合选择生成ABC方案</td><td>查看方案/发起投票/调整</td></tr>
+    <tr><td>VOTING</td><td>H5投票进行中</td><td>查看实时结果/结束投票/催促投票</td></tr>
+    <tr><td>BOOKING</td><td>胜出方案生成预订清单</td><td>一键预订/分别预订/修改方案</td></tr>
+  </table>
+
+  <h3>4.3 异常流程</h3>
+  <table>
+    <tr><th>异常场景</th><th>处理方式</th></tr>
+    <tr><td>转发内容与旅行无关</td><td>提示"未找到旅行计划信息"，引导手动填写或重新转发</td></tr>
+    <tr><td>必要信息缺失（日期/城市/人数）</td><td>进入CONFIRMING状态，AI对话式追问，一次一个，提供候选选项</td></tr>
+    <tr><td>群聊中无交通偏好</td><td>AI基于日期/人数/距离自动推荐默认交通方式（如京沪线默认高铁），同时展示备选</td></tr>
+    <tr><td>群聊中无住宿位置偏好</td><td>AI基于目的地热门商圈推荐3家酒店，标注"未检测到群友位置偏好，为你推荐热门选择"</td></tr>
+    <tr><td>机票/火车票查询无结果</td><td>该品类展示"暂无可售班次"，自动跳到下一步，不阻塞流程</td></tr>
+    <tr><td>酒店无库存</td><td>标注"已满房"，自动推荐同区域同档次替代酒店</td></tr>
+    <tr><td>用户中途选择"去预订"</td><td>跳转对应品类交易页；已选信息暂存为草稿，用户完成预订后可返回继续规划</td></tr>
+    <tr><td>投票无人参与/超时</td><td>组织者可手动结束投票，选择任一方案进入预订；或重新发起投票</td></tr>
+    <tr><td>投票后价格变动</td><td>预订前重新查询实时价格，如有变动提示用户确认</td></tr>
+    <tr><td>网络异常/接口超时</td><td>保留当前状态和已选信息，提供"重试"按钮；各品类查询独立超时，不互相阻塞</td></tr>
+  </div>
+
+  <h3>4.4 典型场景故事（完整Demo）</h3>
+  <div class="demo-box">
+    <p style="color:#0EA5A0;font-weight:700;margin-bottom:8px">▼ 转发后App自动打开</p>
+    <div class="ai-msg">🔍 正在分析来自微信的聊天记录...<br>✅ 识别完成！已提取以下信息：</div>
+    <div class="ai-msg">
+      👥 <strong>出行人数：</strong>5人<br>
+      📅 <strong>出行日期：</strong>10月1日-10月3日（3天2晚）<br>
+      🚀 <strong>出发城市：</strong>北京<br>
+      🎯 <strong>目的城市：</strong>上海<br>
+      💬 <strong>群友偏好：</strong><br>
+      &nbsp;&nbsp;<span class="persona-tag a">A</span> 想坐飞机<br>
+      &nbsp;&nbsp;<span class="persona-tag e">E</span> 想坐高铁<br>
+      &nbsp;&nbsp;<span class="persona-tag c">C</span> 想住外滩附近<br>
+      &nbsp;&nbsp;<span class="persona-tag d">D</span> 想住迪士尼附近<br>
+      &nbsp;&nbsp;<span class="persona-tag e">E</span> 想住虹桥火车站附近<br>
+      &nbsp;&nbsp;<span class="persona-tag b">B</span> 想去迪士尼乐园
+    </div>
+    <div class="user-msg">✅ 信息无误，开始规划</div>
+
+    <p style="color:#FF6B35;font-weight:700;margin:16px 0 8px">▼ Step1 交通推荐</p>
+    <div class="ai-msg">
+      🚄✈️ <strong>Step 1/3：大交通推荐</strong><br><br>
+      群友有不同意见，我同时查了10月1日北京→上海的机票和高铁：<br><br>
+      <strong>✈️ 飞机方案：</strong>国航CA1501，07:30-09:45，¥680/人<br>
+      <strong>🚄 高铁方案：</strong>G1次，07:00-11:36，¥553/人<br><br>
+      🤖 <strong>推荐：高铁</strong>——5人总价省¥635，国庆航班延误率高，高铁准点率98%+。E提到怕飞机延误，高铁更稳妥。<br>
+      但A想坐飞机，如果赶时间也可以选飞机。
+    </div>
+    <div class="user-msg">选高铁吧，继续</div>
+
+    <p style="color:#FF6B35;font-weight:700;margin:16px 0 8px">▼ Step2 酒店推荐</p>
+    <div class="ai-msg">
+      🏨 <strong>Step 2/3：酒店推荐</strong><br><br>
+      群友提到了3个位置，我分别查了最近的酒店：<br><br>
+      <strong>📍 外滩附近（C的偏好）：</strong><br>
+      &nbsp;&nbsp;1. 上海外滩华尔道夫酒店 ¥2,800/晚<br>
+      &nbsp;&nbsp;2. 上海外滩英迪格酒店 ¥1,200/晚<br>
+      &nbsp;&nbsp;3. 桔子水晶上海外滩酒店 ¥680/晚<br><br>
+      <strong>📍 迪士尼附近（D的偏好）：</strong><br>
+      &nbsp;&nbsp;1. 上海迪士尼乐园酒店 ¥2,200/晚<br>
+      &nbsp;&nbsp;2. 上海玩具总动员酒店 ¥1,500/晚<br>
+      &nbsp;&nbsp;3. 全季上海迪士尼店 ¥520/晚<br><br>
+      <strong>📍 虹桥火车站附近（E的偏好）：</strong><br>
+      &nbsp;&nbsp;1. 上海虹桥康得思酒店 ¥980/晚<br>
+      &nbsp;&nbsp;2. 全季上海虹桥火车站店 ¥450/晚<br>
+      &nbsp;&nbsp;3. 汉庭上海虹桥火车站店 ¥280/晚<br><br>
+      🤖 <strong>推荐：上海外滩英迪格酒店</strong>——位置在外滩核心区，满足C晚上逛外滩的需求；¥1,200/晚价格适中，5人需3间房（2间双床+1间大床），2晚总价¥7,200，人均¥1,440。距迪士尼地铁约45分钟，D去迪士尼也方便。
+    </div>
+    <div class="user-msg">先继续看景点</div>
+
+    <p style="color:#FF6B35;font-weight:700;margin:16px 0 8px">▼ Step3 景点推荐</p>
+    <div class="ai-msg">
+      🎫 <strong>Step 3/3：景点推荐</strong><br><br>
+      <span class="persona-tag b">B</span> 明确想去迪士尼乐园，为你推荐：<br><br>
+      <strong>🏰 上海迪士尼乐园</strong><br>
+      10月2日门票 · 成人¥475/人 × 4 = ¥1,900<br>
+      （5人中如无儿童，按成人票计算）<br><br>
+      🤖 建议10月2日去迪士尼，10月1日抵达后可在外滩逛，10月3日返程。
+    </div>
+    <div class="user-msg">可以，生成方案吧</div>
+
+    <p style="color:#0EA5A0;font-weight:700;margin:16px 0 8px">▼ ABC方案生成</p>
+    <div class="ai-msg">
+      📋 <strong>已生成3套方案，发起群投票？</strong><br><br>
+      <strong>方案A（舒适型）：</strong>高铁+外滩英迪格+迪士尼 = ¥11,865（人均¥2,373）<br>
+      <strong>方案B（均衡型）：</strong>高铁+迪士尼玩具总动员+迪士尼 = ¥10,965（人均¥2,193）<br>
+      <strong>方案C（经济型）：</strong>高铁+全季虹桥+迪士尼 = ¥6,315（人均¥1,263）
+    </div>
+    <div class="user-msg">发起投票</div>
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="section" id="s5">
+  <h2><span class="num">5</span>功能范围</h2>
+
+  <h3>5.1 In Scope</h3>
+  <table>
+    <tr><th>模块</th><th>包含内容</th></tr>
+    <tr><td>导入</td><td>App端Share Extension接收微信转发文本；自动打开程星AI并触发解析</td></tr>
+    <tr><td>识别</td><td>必要信息（人数/日期/出发地/目的地）+ 个人偏好归因（交通方式/住宿位置/景点意向）</td></tr>
+    <tr><td>确认</td><td>结构化确认卡片，逐项可编辑；缺失信息对话式追问</td></tr>
+    <tr><td>交通推荐</td><td>同时查询机票+火车票；对比卡片展示（时间/价格/时长）；AI推荐+理由；即时预订入口</td></tr>
+    <tr><td>酒店推荐</td><td>按群聊中不同位置偏好分别查询，每位置展示3家最近酒店；AI推荐1家+理由；即时预订入口</td></tr>
+    <tr><td>景点推荐</td><td>根据群聊景点意向推荐门票卡片；AI建议游玩日期；即时预订入口</td></tr>
+    <tr><td>方案生成</td><td>整合三步选择生成ABC三套差异化方案（不同酒店档次+位置组合）</td></tr>
+    <tr><td><strong>费用均摊</strong></td><td>每套方案自动计算总价和人均价；展示每人交通/酒店/门票分项应付明细；投票H5和预订清单中同步展示人均价</td></tr>
+    <tr><td>投票H5</td><td>生成可分享H5页面；群友查看方案详情（含人均价）并投票；实时统计结果；组织者可结束投票</td></tr>
+    <tr><td>一键预订</td><td>胜出方案生成预订清单；交通/酒店/门票分别跳转同程交易页</td></tr>
+  </table>
+
+  <h3>5.2 Out of Scope</h3>
+  <table>
+    <tr><th>不包含</th><th>说明</th><th>计划版本</th></tr>
+    <tr><td>差异化均摊（按房间/按参与分摊/自定义比例）</td><td>V1.0仅支持默认按人头均摊（成人平摊总价，儿童费用计入总价但除数只算成人）；按房间谁住谁承担、按景点参与者分摊、自定义比例等进阶模式V1.5迭代</td><td>V1.5</td></tr>
+    <tr><td>AA账单收款/结算跟踪</td><td>V1.0仅展示应付明细，不生成收款账单、不跟踪谁付了谁没付</td><td>V1.5</td></tr>
+    <tr><td>机票实际预订</td><td>V1.0机票仅用于与高铁对比展示，预订跳转机票频道；主推火车票</td><td>V1.5</td></tr>
+    <tr><td>小程序截图OCR入口</td><td>本PRD聚焦App转发主路径，截图OCR见产品方案v1.1</td><td>V1.0同步</td></tr>
+    <tr><td>粘贴文本/手动填写</td><td>作为降级入口，复用程星AI对话能力，不在本PRD详述</td><td>V1.0</td></tr>
+    <tr><td>当地交通（打车）</td><td>分步推荐仅覆盖大交通+酒店+景点，打车预估后续迭代</td><td>V1.5</td></tr>
+    <tr><td>行程时间线/日程编排</td><td>V1.0不做按天时间线，仅在景点推荐时建议游玩日期</td><td>V2.0</td></tr>
+    <tr><td>投票评论/留言</td><td>V1.0投票仅支持选择方案，不支持评论</td><td>V1.5</td></tr>
+    <tr><td>方案版本管理</td><td>投票后修改方案需重新生成投票，不保留历史版本</td><td>V2.0</td></tr>
+  </table>
+</div>
+
+<!-- 6 -->
+<div class="section" id="s6">
+  <h2><span class="num">6</span>功能设计</h2>
+
+  <!-- 6.1 -->
+  <h3>6.1 聊天记录导入与自动识别</h3>
+
+  <h4>6.1.1 触发方式</h4>
+  <p>微信群聊 → 长按多选旅行相关消息 → 点击"转发" → "更多" → 选择"同程旅行"App → iOS通过Share Extension / Android通过Intent ACTION_SEND接收文本 → 同程App自动打开程星AI对话界面，文本自动填入输入框并自动发送触发解析。</p>
+
+  <div class="tech-note">
+    <strong>技术要点：</strong><br>
+    • iOS：Share Extension接收<code>public.plain-text</code>和<code>public.url</code>类型，通过App Group共享数据或URL Scheme传递给主程序<br>
+    • Android：注册<code>ACTION_SEND</code> Intent Filter，接收<code>text/plain</code>类型<br>
+    • 转发文本格式：微信多选转发保留"发送人：内容"结构，是偏好归因的基础
+  </div>
+
+  <h4>6.1.2 AI识别内容</h4>
+  <p>AI解析转发文本后，需提取两类信息：</p>
+  <table>
+    <tr><th>类别</th><th>字段</th><th>识别示例</th><th>置信度处理</th></tr>
+    <tr><td rowspan="4"><strong>必要信息</strong></td><td>人数</td><td>"5个人"→5；"我们一家三口"→3</td><td rowspan="4">≥85%直接确认；60-85%高亮请确认；&lt;60%追问</td></tr>
+    <tr><td>日期</td><td>"10月1号出发3号回来"→10.1-10.3；"国庆3天2晚"→10.1-10.3</td></tr>
+    <tr><td>出发城市</td><td>"从北京走"→北京</td></tr>
+    <tr><td>目的城市</td><td>"去上海"→上海</td></tr>
+    <tr><td rowspan="3"><strong>个人偏好</strong></td><td>交通偏好+归因</td><td>A："机票还行"→{person:A, type:flight, raw:"机票还行"}；E："高铁吧"→{person:E, type:train, raw:"高铁吧，飞机延误怕了"}</td><td rowspan="3">每条偏好必须归因到具体发言人；无法确定发言人时标注"群友"</td></tr>
+    <tr><td>住宿位置偏好+归因</td><td>C："住外滩附近"→{person:C, location:外滩}；D："住迪士尼附近"→{person:D, location:迪士尼}；E："住虹桥火车站附近"→{person:E, location:虹桥}</td></tr>
+    <tr><td>景点意向+归因</td><td>B："我要去迪士尼乐园"→{person:B, attraction:迪士尼乐园, raw:"我要去迪士尼乐园！！"}</td></tr>
+  </table>
+
+  <div class="box box-warning">
+    <strong>⚠️ 偏好归因是核心能力：</strong>与产品方案v1.1中"识别整体偏好"不同，本PRD要求<strong>每条偏好必须绑定发言人</strong>。这是后续推荐时引用群友原话、ABC方案差异化、投票时让每个人感到"我的意见被考虑"的基础。微信多选转发文本天然保留发送人昵称，是归因的数据基础。
+  </div>
+
+  <h4>6.1.3 发言人标识</h4>
+  <ul>
+    <li>从转发文本中提取发送人昵称（微信转发格式通常为"昵称：内容"）</li>
+    <li>在程星AI界面中，每个发言人用不同颜色的圆形头像标签展示（A/B/C/D/E...），与群聊中的昵称建立映射</li>
+    <li>后续所有推荐和方案中引用偏好时，均使用相同颜色标签标注发言人</li>
+    <li>如转发文本中无法提取发送人（如粘贴文本场景），统一标注为"群友"，不做归因</li>
+  </ul>
+
+  <!-- 6.2 -->
+  <h3>6.2 信息确认卡片</h3>
+
+  <h4>6.2.1 卡片结构</h4>
+  <p>AI解析完成后，在对话流中插入结构化确认卡片，包含：</p>
+  <table>
+    <tr><th>区域</th><th>内容</th><th>交互</th></tr>
+    <tr><td>必要信息区</td><td>人数、日期、出发城市→目的城市，每项一行</td><td>点击任一项弹出编辑控件（人数用步进器、日期用日历选择器、城市用选择器）</td></tr>
+    <tr><td>偏好列表区</td><td>按"交通/住宿/景点"分组展示每条偏好+发言人标签</td><td>可删除某条偏好（误识别）；可手动添加偏好</td></tr>
+    <tr><td>操作区</td><td>主CTA按钮"确认，开始规划"</td><td>点击进入TRANSPORT状态；如有低置信度字段，按钮文案为"请先确认高亮信息"</td></tr>
+  </table>
+
+  <h4>6.2.2 追问规则</h4>
+  <div class="box box-primary">
+    <strong>一次只问一个问题。</strong>按优先级追问：人数 → 日期 → 目的城市 → 出发城市。追问时提供候选选项（如日期给出"国庆10.1-10.3""国庆10.2-10.4"等），而非开放输入。偏好信息缺失不追问，在推荐步骤中处理。
+  </div>
+
+  <!-- 6.3 -->
+  <h3>6.3 Step1：大交通推荐</h3>
+
+  <h4>6.3.1 查询逻辑</h4>
+  <ol>
+    <li>使用确认后的出发城市、目的城市、出发日期，<strong>同时</strong>调用机票查询和火车票查询接口</li>
+    <li>机票：查询出发日期当天所有航班，取价格最低的1个班次作为推荐候选；另取时间最合适的1个作为备选</li>
+    <li>火车票：查询出发日期当天所有车次，优先取高铁/动车，取时间最合适的1个车次作为推荐候选；另取价格最低的1个作为备选</li>
+    <li>按人数计算总价（机票×人数、火车票×人数）</li>
+  </ol>
+
+  <h4>6.3.2 对比卡片展示</h4>
+  <table>
+    <tr><th>展示项</th><th>机票卡片</th><th>火车票卡片</th></tr>
+    <tr><td>交通方式图标+名称</td><td>✈️ 飞机</td><td>🚄 高铁</td></tr>
+    <tr><td>班次信息</td><td>航空公司+航班号+起降时间</td><td>车次+出发到达时间</td></tr>
+    <tr><td>时长</td><td>飞行时长（如2h15m）</td><td>运行时长（如4h36m）</td></tr>
+    <tr><td>单价</td><td>¥XXX/人（含燃油机建）</td><td>¥XXX/人（二等座）</td></tr>
+    <tr><td>5人总价</td><td><strong>¥X,XXX</strong></td><td><strong>¥X,XXX</strong></td></tr>
+    <tr><td>偏好标签</td><td><span class="persona-tag a">A 想坐飞机</span></td><td><span class="persona-tag e">E 想坐高铁</span></td></tr>
+    <tr><td>选择按钮</td><td>"选飞机"</td><td>"选高铁"（AI推荐时高亮）</td></tr>
+  </table>
+
+  <h4>6.3.3 AI推荐逻辑</h4>
+  <p>AI综合以下因素生成推荐和推荐理由：</p>
+  <ul>
+    <li><strong>群友偏好权重：</strong>如有明确偏好，推荐理由引用原话（"E提到怕飞机延误"）</li>
+    <li><strong>价格对比：</strong>计算两种方式的差价，在推荐理由中显性化（"5人总价省¥635"）</li>
+    <li><strong>时间成本：</strong>对比总耗时（含提前到机场/车站时间），飞机虽飞行短但需提前2小时到机场</li>
+    <li><strong>日期因素：</strong>节假日航班延误率高，高铁准点率更高，作为推荐依据</li>
+    <li><strong>人数因素：</strong>5人团体，高铁座位可连座，飞机座位分散，作为隐性因素</li>
+  </ul>
+  <p>推荐理由控制在2-3句话，先给结论再给依据，引用群友原话增加说服力。如群友偏好冲突（有人想飞有人想高铁），需在理由中承认分歧并给出折中建议。</p>
+
+  <h4>6.3.4 操作分支</h4>
+  <div class="grid2">
+    <div class="mini-card" style="border-left:3px solid var(--accent)">
+      <h4>🚀 去预订</h4>
+      <p>用户选择交通方式后点击"去预订"→ 携带车次/航班信息+人数跳转同程火车票/机票预订页 → 完成后返回程星AI，提示"交通已选定，是否继续规划酒店？"→ 选择"继续"进入HOTEL状态</p>
+    </div>
+    <div class="mini-card" style="border-left:3px solid var(--primary)">
+      <h4>➡️ 继续看看</h4>
+      <p>用户选择交通方式后点击"继续"→ 交通选择暂存（记录用户选择），进入HOTEL状态 → 后续在ABC方案中使用该选择</p>
+    </div>
+  </div>
+
+  <h4>6.3.5 交互细节</h4>
+  <ul>
+    <li>机票和火车票两张卡片左右并排（移动端上下堆叠），AI推荐的卡片有"AI推荐"角标和主色边框</li>
+    <li>用户点击某张卡片即选中该方式（卡片高亮+打勾），底部出现"去预订"和"继续看看酒店"两个按钮</li>
+    <li>用户也可不选，直接在对话框说"随便"/"你决定"，AI采用推荐方案并继续</li>
+  </ul>
+
+  <!-- 6.4 -->
+  <h3>6.4 Step2：酒店推荐</h3>
+
+  <h4>6.4.1 查询逻辑</h4>
+  <ol>
+    <li>从已确认偏好中提取所有住宿位置偏好（本例中3个：外滩、迪士尼、虹桥）</li>
+    <li>对每个位置，以该位置为中心，调用酒店搜索接口（按距离排序），取最近的3家酒店</li>
+    <li>查询条件：入住日期=出发日期，离店日期=返回日期（即10.1入住，10.3离店，2晚）</li>
+    <li>根据人数自动计算房型需求：5人 → 默认3间房（2间双床房+1间大床房），用户可调整</li>
+    <li>展示每家酒店的：名称、距离位置点、星级/评分、起价、房型组合总价（2晚）</li>
+  </ol>
+
+  <div class="box box-info">
+    <strong>💡 多位置偏好处理策略：</strong>群聊中出现多个位置偏好时，<strong>不做筛选</strong>，全部展示。AI推荐时综合考虑：哪个位置对多数人便利、哪个位置性价比最高、哪个位置靠近核心景点。最终ABC方案的差异主要来自酒店位置/档次的不同组合。
+  </div>
+
+  <h4>6.4.2 展示结构</h4>
+  <p>按位置分组展示，每组包含：</p>
+  <table>
+    <tr><th>层级</th><th>内容</th></tr>
+    <tr><td>位置标题行</td><td>📍 位置名称 + <span class="persona-tag c">C的偏好</span> + "距XX米/公里"</td></tr>
+    <tr><td>酒店列表</td><td>3家酒店横向卡片排列（移动端纵向），每张卡片含：酒店名/图片/评分/距离/起价/2晚总价</td></tr>
+    <tr><td>AI推荐</td><td>在所有9家酒店中推荐1家，推荐卡片突出展示，附推荐理由</td></tr>
+  </table>
+
+  <h4>6.4.3 AI推荐逻辑</h4>
+  <p>从所有查询到的酒店中推荐1家，综合因素：</p>
+  <ul>
+    <li><strong>偏好覆盖：</strong>优先选择能满足最多人需求的位置。如B要去迪士尼，住迪士尼附近可满足D和B两人</li>
+    <li><strong>交通便利：</strong>考虑到酒店位置与景点/车站的距离和交通时间</li>
+    <li><strong>性价比：</strong>在满足偏好的酒店中选择价格适中的（非最贵也非最便宜）</li>
+    <li><strong>评分/口碑：</strong>优先推荐评分≥4.5的酒店</li>
+    <li><strong>引用原话：</strong>推荐理由中引用群友偏好，如"C想住外滩附近，这家就在外滩核心区"</li>
+  </ul>
+
+  <h4>6.4.4 操作分支</h4>
+  <p>与交通步骤一致：用户选择酒店后可"去预订"（跳转酒店预订页）或"继续看看景点"（暂存选择进入ATTRACTION状态）。用户也可在对话框说"换一家""看看更便宜的"，AI重新推荐。</p>
+
+  <h4>6.4.5 房间数计算规则</h4>
+  <table>
+    <tr><th>人数</th><th>默认房间方案</th><th>可调整</th></tr>
+    <tr><td>1-2人</td><td>1间大床房</td><td>可改双床房</td></tr>
+    <tr><td>3-4人</td><td>2间双床房</td><td>可改1大床+1双床/2大床</td></tr>
+    <tr><td>5-6人</td><td>2间双床房+1间大床房</td><td>可调整间数和房型组合</td></tr>
+    <tr><td>7-8人</td><td>3间双床房+1间大床房</td><td>可调整</td></tr>
+  </table>
+  <p style="font-size:13px;color:var(--text3)">注：默认按2人/间计算，向上取整。如有儿童（识别到"带孩子"等），儿童不占床则不增房间，占床则按成人计。用户可在确认卡片中调整。</p>
+
+  <!-- 6.5 -->
+  <h3>6.5 Step3：景点推荐</h3>
+
+  <h4>6.5.1 查询逻辑</h4>
+  <ol>
+    <li>从偏好中提取景点意向（本例：B→迪士尼乐园）</li>
+    <li>调用门票查询接口，获取该景点在出行日期范围内的门票信息（价格/开放时间/预订规则）</li>
+    <li>按人数计算门票总价（如识别到儿童/老人，自动计算优惠票）</li>
+    <li>如群聊中提到多个景点，逐一展示；如未提及任何景点，AI推荐目的地TOP3热门景点</li>
+  </ol>
+
+  <h4>6.5.2 门票卡片展示</h4>
+  <table>
+    <tr><th>展示项</th><th>内容</th></tr>
+    <tr><td>景点名称+图片</td><td>如"🏰 上海迪士尼乐园"</td></tr>
+    <tr><td>偏好归因</td><td><span class="persona-tag b">B 想去</span></td></tr>
+    <tr><td>日期建议</td><td>AI建议游玩日期（如"建议10月2日游玩，10月1日抵达后可在外滩逛"）</td></tr>
+    <tr><td>门票信息</td><td>票种+单价×人数=总价</td></tr>
+    <tr><td>操作按钮</td><td>"选这个"（选中后高亮）</td></tr>
+  </table>
+
+  <h4>6.5.3 日期建议逻辑</h4>
+  <p>AI根据出发日期、返回日期和景点数量建议游玩日期：</p>
+  <ul>
+    <li>出发当天（Day1）：抵达+就近活动（如住外滩则逛外滩）</li>
+    <li>中间天（Day2）：安排核心景点（如迪士尼，需全天）</li>
+    <li>返回当天（Day3）：轻松活动+返程</li>
+    <li>多个景点时，按地理位置聚类安排在同一天</li>
+  </ul>
+
+  <h4>6.5.4 操作分支</h4>
+  <p>选择景点门票后可"去预订"（跳转门票预订页）或"生成方案"（进入PLAN_GEN状态）。如群聊中无景点偏好，用户可选择"跳过景点"直接生成方案。</p>
+
+  <!-- 6.6 -->
+  <h3>6.6 ABC方案生成</h3>
+
+  <h4>6.6.1 方案差异化逻辑</h4>
+  <p>ABC三套方案基于用户在分步推荐中的选择和群聊偏好，通过<strong>酒店位置/档次的不同组合</strong>产生差异化。交通方式和景点在三步中已选定（本例均为高铁+迪士尼），不作为方案变量。</p>
+  <table>
+    <tr><th>方案</th><th>定位</th><th>交通(5人往返)</th><th>酒店(3间2晚)</th><th>景点(5人)</th><th>总价</th><th>人均</th><th>差异来源</th></tr>
+    <tr>
+      <td><strong>方案A</strong><br><span class="badge badge-rec">AI推荐</span></td>
+      <td>舒适型</td>
+      <td>高铁 ¥5,530</td>
+      <td>外滩英迪格 ¥7,200</td>
+      <td>迪士尼 ¥2,375</td>
+      <td><strong>¥15,105</strong></td>
+      <td><strong style="color:var(--accent)">¥3,021</strong></td>
+      <td>C的偏好（外滩）+ 中档酒店</td>
+    </tr>
+    <tr>
+      <td><strong>方案B</strong></td>
+      <td>均衡型</td>
+      <td>高铁 ¥5,530</td>
+      <td>迪士尼玩具总动员 ¥9,000</td>
+      <td>迪士尼 ¥2,375</td>
+      <td><strong>¥16,905</strong></td>
+      <td><strong style="color:var(--accent)">¥3,381</strong></td>
+      <td>D的偏好（迪士尼附近）+ 主题酒店体验</td>
+    </tr>
+    <tr>
+      <td><strong>方案C</strong></td>
+      <td>经济型</td>
+      <td>高铁 ¥5,530</td>
+      <td>全季虹桥 ¥2,700</td>
+      <td>迪士尼 ¥2,375</td>
+      <td><strong>¥10,605</strong></td>
+      <td><strong style="color:var(--accent)">¥2,121</strong></td>
+      <td>E的偏好（虹桥附近）+ 经济连锁</td>
+    </tr>
+  </table>
+
+  <div class="box box-primary">
+    <strong>方案生成规则：</strong><br>
+    1. 交通和景点为用户在Step1/Step3中的确定选择，三套方案保持一致<br>
+    2. 酒店为主要变量：取群聊中提到的N个位置偏好，每个位置选1家酒店（AI推荐的那家），形成N套方案<br>
+    3. 如群聊中只提到1个位置，则另生成2套备选（附近同档次+经济档），凑齐3套<br>
+    4. 如群聊中提到3个以上位置，AI选择差异最大的3个位置生成方案，其余位置在方案详情中标注"也有考虑"<br>
+    5. 每套方案计算总价和人均价，AI推荐性价比最优的一套（不一定是最便宜的）
+  </div>
+
+  <h4>6.6.2 方案卡片结构</h4>
+  <div class="plan-card recommended">
+    <h4>🌟 方案A：舒适型 <span class="badge badge-rec">AI推荐</span></h4>
+    <table style="margin:8px 0">
+      <tr><td style="width:80px">🚄 交通</td><td>G1次高铁 北京南→上海虹桥 往返 × 5人</td><td style="text-align:right;white-space:nowrap">¥5,530</td></tr>
+      <tr><td>🏨 酒店</td><td>上海外滩英迪格酒店 · 3间房 · 2晚</td><td style="text-align:right">¥7,200</td></tr>
+      <tr><td>🎫 景点</td><td>迪士尼乐园门票 × 5人（10月2日）</td><td style="text-align:right">¥2,375</td></tr>
+      <tr><td colspan="2" style="text-align:right;border-top:2px solid var(--border)"><strong>总价 · 人均</strong></td><td style="text-align:right;border-top:2px solid var(--border)"><span class="price">¥15,105</span> <small>人均¥3,021</small></td></tr>
+    </table>
+    <p style="font-size:13px;color:var(--text3);margin:4px 0 0">AI推荐理由：外滩位置满足C的需求，距迪士尼地铁45分钟可达，酒店评分4.7分口碑好，价格在三套方案中居中。</p>
+  </div>
+
+  <h4>6.6.3 方案调整</h4>
+  <ul>
+    <li>用户可在对话框中说"方案A换个便宜点的酒店"，AI局部调整方案A的酒店，其他不变</li>
+    <li>用户可说"把高铁改成飞机"，三套方案的交通全部更新并重新计算价格</li>
+    <li>调整后实时更新价格和人均均摊金额</li>
+  </ul>
+
+  <h4>6.6.4 费用均摊计算 <span class="badge badge-hot">v1.1新增</span></h4>
+
+  <p>ABC三套方案生成后，系统<strong>自动</strong>为每套方案计算人均均摊价格，无需用户额外操作。</p>
+
+  <div class="box box-primary">
+    <strong>默认均摊规则（V1.0）：按人头均摊</strong><br><br>
+    <strong>人均费用 = （交通费总价 + 酒店费总价 + 门票费总价）÷ 成人数</strong><br><br>
+    说明：<br>
+    • 成人 = 总人数 − 儿童数；儿童票/儿童占床费用计入总价，但<strong>除数只算成人</strong>（即儿童部分由同行成人共同承担）<br>
+    • 是否儿童：从群聊识别"带孩子/小孩/我家娃"等表述，或用户在确认卡片中手动标注；无法判断时默认全部按成人计<br>
+    • 交通：5人全部乘坐同一车次/航班，总价÷成人数<br>
+    • 酒店：3间房2晚总价÷成人数（V1.0不区分谁住哪间，统一平摊；差异化按房间分摊V1.5）<br>
+    • 门票：5人全部去同一景点，总价÷成人数
+  </div>
+
+  <h4>计算示例（5人均为成人 · 方案A）</h4>
+  <table>
+    <tr><th>费用项</th><th>计算式</th><th>总价</th><th>人均（÷5）</th></tr>
+    <tr><td>🚄 高铁（G1次二等座）</td><td>¥553 × 5人 × 2趟(往返)</td><td>¥5,530</td><td>¥1,106</td></tr>
+    <tr><td>🏨 外滩英迪格（3间×2晚）</td><td>¥1,200 × 3间 × 2晚</td><td>¥7,200</td><td>¥1,440</td></tr>
+    <tr><td>🎫 迪士尼门票（10.2）</td><td>¥475 × 5人</td><td>¥2,375</td><td>¥475</td></tr>
+    <tr style="background:var(--primary-light)"><td colspan="2"><strong>合计</strong></td><td><strong>¥15,105</strong></td><td><strong style="color:var(--accent);font-size:16px">¥3,021/人</strong></td></tr>
+  </table>
+
+  <div class="box box-info">
+    <strong>💡 三套方案人均价对比：</strong>方案A ¥3,021/人（舒适型）、方案B ¥3,381/人（均衡型，迪士尼主题酒店更贵）、方案C ¥2,121/人（经济型，全季虹桥）。人均价直接展示在方案卡片上，是用户投票决策的核心参考因素之一。
+  </div>
+
+  <h4>6.6.5 人均明细展示 <span class="badge badge-hot">v1.1新增</span></h4>
+
+  <p>每套方案卡片上展示总价和人均价（大字突出），点击"查看费用明细"展开每人应付的分项金额表：</p>
+
+  <table>
+    <tr><th>成员</th><th>🚄 交通</th><th>🏨 酒店</th><th>🎫 门票</th><th>合计应付</th></tr>
+    <tr><td><span class="persona-tag a">A</span> 群友A</td><td>¥1,106</td><td>¥1,440</td><td>¥475</td><td><strong>¥3,021</strong></td></tr>
+    <tr><td><span class="persona-tag b">B</span> 群友B</td><td>¥1,106</td><td>¥1,440</td><td>¥475</td><td><strong>¥3,021</strong></td></tr>
+    <tr><td><span class="persona-tag c">C</span> 群友C</td><td>¥1,106</td><td>¥1,440</td><td>¥475</td><td><strong>¥3,021</strong></td></tr>
+    <tr><td><span class="persona-tag d">D</span> 群友D</td><td>¥1,106</td><td>¥1,440</td><td>¥475</td><td><strong>¥3,021</strong></td></tr>
+    <tr><td><span class="persona-tag e">E</span> 群友E</td><td>¥1,106</td><td>¥1,440</td><td>¥475</td><td><strong>¥3,021</strong></td></tr>
+    <tr style="background:var(--bg)"><td><strong>合计</strong></td><td><strong>¥5,530</strong></td><td><strong>¥7,200</strong></td><td><strong>¥2,375</strong></td><td><strong style="color:var(--accent)">¥15,105</strong></td></tr>
+  </table>
+
+  <p style="font-size:13px;color:var(--text3)">注：V1.0所有成人金额一致（默认平摊）；识别到儿童时，儿童行展示其实际票占费用（如门票儿童票¥356），成人行除数不变但人均略增。成员昵称来自转发文本中的微信昵称，颜色标签与确认卡片保持一致。</p>
+
+  <h4>均摊结果在各触点的透出</h4>
+  <table>
+    <tr><th>触点</th><th>展示内容</th><th>交互</th></tr>
+    <tr><td>ABC方案卡片（程星AI对话内）</td><td>总价 + <strong>人均价（大字红色突出）</strong></td><td>点击"费用明细"展开分项表</td></tr>
+    <tr><td>投票H5页面</td><td>每张方案卡显示人均价（如"人均¥3,021"）</td><td>点击方案展开查看完整明细（含每人分项）</td></tr>
+    <tr><td>胜出方案确认</td><td>"方案A胜出！总价¥15,105，人均¥3,021"</td><td>—</td></tr>
+    <tr><td>预订清单</td><td>清单底部展示"5人合计¥15,105，人均¥3,021"</td><td>预订完成后明细可分享到群</td></tr>
+    <tr><td>分享到群的卡片文案</td><td>"🗳️ 国庆上海出游投票，人均¥1,821起！"</td><td>人均价作为分享文案核心钩子</td></tr>
+  </table>
+
+  <h4>V1.0均摊能力边界</h4>
+  <div class="box box-warning">
+    <strong>V1.0只做"自动算明白每人该付多少"，不做收款和结算：</strong><br>
+    • ✅ 自动按人头平摊，展示每人分项明细<br>
+    • ✅ 儿童票/儿童占床费用正确计入<br>
+    • ❌ 不支持"谁住哪间谁承担房费"（按房间分摊）→ V1.5<br>
+    • ❌ 不支持"有人不去某景点则不摊该门票"（按参与分摊）→ V1.5<br>
+    • ❌ 不支持自定义比例/固定金额 → V1.5<br>
+    • ❌ 不生成AA收款账单、不接入微信支付/收款码、不跟踪谁已付谁未付 → V1.5
+  </div>
+
+  <!-- 6.7 -->
+  <h3>6.7 投票H5页面</h3>
+
+  <h4>6.7.1 H5页面结构</h4>
+  <table>
+    <tr><th>区域</th><th>内容</th></tr>
+    <tr><td>顶部</td><td>行程标题："国庆上海3天2晚 · 5人出行"；发起人头像；投票截止时间（默认发起后24小时）</td></tr>
+    <tr><td>方案列表</td><td>ABC三套方案卡片纵向排列，每张卡片含：方案名+定位标签、交通/酒店/景点摘要、总价+人均、"投这票"按钮</td></tr>
+    <tr><td>投票结果区</td><td>投票后显示实时投票进度条（如A: 3票 ████████░░ 60% | B: 1票 ███░░░░░░ 20% | C: 1票 ███░░░░░░ 20%）</td></tr>
+    <tr><td>底部</td><td>"查看方案详情"链接（展开完整行程）；"我也要用同程规划"入口（引流下载/打开小程序）</td></tr>
+  </table>
+
+  <h4>6.7.2 投票规则</h4>
+  <ul>
+    <li><strong>投票资格：</strong>通过分享链接进入的用户均可投票，无需登录同程账号（降低参与门槛）；但需授权微信昵称/头像用于显示投票人</li>
+    <li><strong>投票次数：</strong>每人限投1票，投票后不可更改</li>
+    <li><strong>投票标识：</strong>投票后在对应方案卡片上显示"✅ 已投"，并展示已投票的群友头像列表</li>
+    <li><strong>实时更新：</strong>投票结果通过WebSocket/轮询实时更新，无需刷新页面</li>
+    <li><strong>截止时间：</strong>默认发起后24小时截止，组织者可在程星AI中提前结束投票或延长截止时间</li>
+    <li><strong>平票处理：</strong>如截止时平票，组织者可选择任一方案或发起第二轮投票</li>
+  </ul>
+
+  <h4>6.7.3 分享方式</h4>
+  <ol>
+    <li>组织者在程星AI中点击"发起投票" → 生成H5链接</li>
+    <li>通过微信分享卡片发送到群聊（小程序卡片或H5链接）</li>
+    <li>卡片标题："🗳️ 国庆上海出游方案投票，3选1！"；摘要："5人3天2晚，人均¥1,263起"；配图：方案A酒店/景点图片</li>
+    <li>群友点击卡片 → 在微信内打开H5页面 → 查看方案 → 投票</li>
+  </ol>
+
+  <h4>6.7.4 组织者视角</h4>
+  <table>
+    <tr><th>信息</th><th>展示位置</th></tr>
+    <tr><td>实时投票数/总人数</td><td>程星AI对话中显示"已投票3/5"</td></tr>
+    <tr><td>各方案票数</td><td>实时进度条</td></tr>
+    <tr><td>谁还没投票</td><td>显示未投票群友昵称（基于微信群昵称，非真实身份）</td></tr>
+    <tr><td>催促投票</td><td>"提醒TA"按钮 → 发送微信服务通知/分享提醒到群</td></tr>
+    <tr><td>结束投票</td><td>"结束投票并生成预订方案"按钮 → 进入BOOKING状态</td></tr>
+  </table>
+
+  <!-- 6.8 -->
+  <h3>6.8 一键预订方案</h3>
+
+  <h4>6.8.1 胜出方案确认</h4>
+  <p>投票结束（手动结束或自动截止）后，程星AI在对话中展示胜出方案：</p>
+  <div class="box box-accent">
+    <strong>🎉 投票结果：方案A胜出！（3/5票）</strong><br>
+    方案A · 舒适型 · 总价¥15,105 · 人均¥3,021<br>
+    高铁G1次往返 + 外滩英迪格3间2晚 + 迪士尼门票5张
+  </div>
+
+  <h4>6.8.2 预订清单</h4>
+  <p>以清单形式展示所有待预订项目，每项含：品类、商品信息、数量、金额、预订状态：</p>
+  <table>
+    <tr><th>序号</th><th>品类</th><th>商品</th><th>数量</th><th>金额</th><th>状态</th><th>操作</th></tr>
+    <tr><td>1</td><td>🚄 火车票(去程)</td><td>G1次 北京南→上海虹桥 10.01</td><td>5张</td><td>¥2,765</td><td>待预订</td><td><strong style="color:var(--accent)">去预订</strong></td></tr>
+    <tr><td>2</td><td>🚄 火车票(返程)</td><td>G2次 上海虹桥→北京南 10.03</td><td>5张</td><td>¥2,765</td><td>待预订</td><td><strong style="color:var(--accent)">去预订</strong></td></tr>
+    <tr><td>3</td><td>🏨 酒店</td><td>外滩英迪格 10.01入住-10.03离店</td><td>3间2晚</td><td>¥7,200</td><td>待预订</td><td><strong style="color:var(--accent)">去预订</strong></td></tr>
+    <tr><td>4</td><td>🎫 门票</td><td>迪士尼乐园 10.02</td><td>5张</td><td>¥2,375</td><td>待预订</td><td><strong style="color:var(--accent)">去预订</strong></td></tr>
+    <tr><td colspan="4" style="text-align:right"><strong>合计 · 人均</strong></td><td><strong>¥15,105</strong><br><span style="color:var(--accent);font-size:12px">人均¥3,021</span></td><td colspan="2"></td></tr>
+  </table>
+
+  <h4>6.8.3 预订执行</h4>
+  <ul>
+    <li><strong>分别预订：</strong>点击每项"去预订"，携带预填信息（车次/日期/人数、酒店/日期/房型/间数、景点/日期/人数）跳转同程对应交易页，用户确认后下单</li>
+    <li><strong>一键预订：</strong>点击"全部一键预订"，依次跳转各品类交易页（火车→酒店→门票），每页预填信息，用户逐页确认下单。上一页完成后自动进入下一页</li>
+    <li><strong>价格刷新：</strong>进入预订前重新查询实时价格，如价格变动超过5%，弹窗提示"价格已变动，新价格¥XXX，是否继续？"</li>
+    <li><strong>预订状态同步：</strong>每完成一项预订，清单中状态更新为"已预订"并显示订单号</li>
+    <li><strong>部分完成：</strong>用户可只预订部分项目（如先订火车票，酒店和门票稍后再订），清单保留待预订项</li>
+  </ul>
+
+  <h4>6.8.4 预订后</h4>
+  <ul>
+    <li>全部预订完成后，生成行程确认单，含每人应付均摊明细，可一键分享到群聊（方便大家转账给组织者）</li>
+    <li>已预订的订单同步到同程"我的订单"中，可正常查看/退改；退改后均摊明细自动重算</li>
+    <li>V1.5迭代：差异化均摊（按房间/按参与分摊/自定义比例）、AA账单收款、结算跟踪</li>
+  </ul>
+</div>
+
+<!-- 7 -->
+<div class="section" id="s7">
+  <h2><span class="num">7</span>数据埋点</h2>
+
+  <h3>7.1 埋点事件列表</h3>
+  <table>
+    <tr><th>事件名称</th><th>事件说明</th><th>触发条件</th><th>关键参数</th></tr>
+    <tr><td>chat_import_success</td><td>聊天记录导入成功</td><td>App接收转发文本并打开程星AI</td><td>source=share_extension, msg_count, text_length</td></tr>
+    <tr><td>ai_parse_complete</td><td>AI解析完成</td><td>识别结果卡片展示</td><td>people_count, date_range, from_city, to_city, preference_count, confidence_level</td></tr>
+    <tr><td>confirm_card_confirm</td><td>确认识别结果</td><td>点击"确认开始规划"</td><td>edited_fields(用户修改了哪些字段), edit_count</td></tr>
+    <tr><td>confirm_card_edit</td><td>编辑识别字段</td><td>修改任一字段</td><td>field_name, old_value, new_value</td></tr>
+    <tr><td>transport_result_show</td><td>交通推荐结果展示</td><td>机票+火车票查询完成</td><td>flight_count, train_count, flight_price, train_price</td></tr>
+    <tr><td>transport_select</td><td>选择交通方式</td><td>点击选择机票或火车票</td><td>choice=flight/train, is_ai_recommended</td></tr>
+    <tr><td>transport_book_click</td><td>交通去预订</td><td>点击"去预订"</td><td>choice=flight/train, total_price</td></tr>
+    <tr><td>transport_continue_click</td><td>交通继续</td><td>点击"继续看看酒店"</td><td>choice=flight/train</td></tr>
+    <tr><td>hotel_result_show</td><td>酒店推荐结果展示</td><td>按位置查询完成</td><td>location_count, hotel_count_per_location, price_range</td></tr>
+    <tr><td>hotel_select</td><td>选择酒店</td><td>点击选择某酒店</td><td>hotel_id, hotel_name, location, price, is_ai_recommended</td></tr>
+    <tr><td>hotel_book_click</td><td>酒店去预订</td><td>点击"去预订"</td><td>hotel_id, room_count, nights, total_price</td></tr>
+    <tr><td>hotel_continue_click</td><td>酒店继续</td><td>点击"继续看看景点"</td><td>hotel_id</td></tr>
+    <tr><td>attraction_result_show</td><td>景点推荐展示</td><td>门票查询完成</td><td>attraction_count, from_chat_preference(bool)</td></tr>
+    <tr><td>attraction_select</td><td>选择景点门票</td><td>点击选择门票</td><td>attraction_id, ticket_count, total_price</td></tr>
+    <tr><td>plan_generate_success</td><td>ABC方案生成成功</td><td>三套方案展示完成（含人均均摊计算）</td><td>plan_a_price, plan_b_price, plan_c_price, plan_a_per_person, plan_b_per_person, plan_c_per_person, ai_recommended_plan</td></tr>
+    <tr><td>split_detail_expand</td><td>展开人均明细</td><td>点击"费用明细"查看每人分项金额</td><td>plan_id, total_price, per_person_price</td></tr>
+    <tr><td>vote_create</td><td>发起投票</td><td>点击"发起投票"</td><td>plan_count, deadline_hours</td></tr>
+    <tr><td>vote_h5_open</td><td>H5投票页打开</td><td>群友打开投票链接</td><td>vote_id, source=wechat, is_organizer(bool)</td></tr>
+    <tr><td>vote_submit</td><td>提交投票</td><td>群友点击投票</td><td>vote_id, selected_plan, time_to_vote_sec</td></tr>
+    <tr><td>vote_end</td><td>结束投票</td><td>组织者结束/自动截止</td><td>vote_id, total_votes, winner_plan, vote_duration</td></tr>
+    <tr><td>booking_list_show</td><td>预订清单展示</td><td>投票结束后展示胜出方案预订清单</td><td>winner_plan, total_price, item_count</td></tr>
+    <tr><td>booking_item_click</td><td>点击单项预订</td><td>点击某项"去预订"</td><td>category=train/hotel/ticket, item_price</td></tr>
+    <tr><td>booking_oneclick_click</td><td>一键全部预订</td><td>点击"全部一键预订"</td><td>total_price, item_count</td></tr>
+    <tr><td>booking_complete</td><td>预订完成</td><td>某品类预订成功</td><td>category, order_id, price</td></tr>
+  </table>
+
+  <h3>7.2 关键转化漏斗</h3>
+  <table>
+    <tr><th>漏斗步骤</th><th>事件</th><th>目标转化率</th></tr>
+    <tr><td>导入成功</td><td>chat_import_success</td><td>—</td></tr>
+    <tr><td>↓ 识别确认</td><td>confirm_card_confirm</td><td>≥70%</td></tr>
+    <tr><td>↓ 交通选择</td><td>transport_select</td><td>≥80%</td></tr>
+    <tr><td>↓ 酒店选择</td><td>hotel_select</td><td>≥75%</td></tr>
+    <tr><td>↓ 方案生成</td><td>plan_generate_success</td><td>≥60%</td></tr>
+    <tr><td>↓ 发起投票</td><td>vote_create</td><td>≥50%</td></tr>
+    <tr><td>↓ 投票完成</td><td>vote_end</td><td>≥40%</td></tr>
+    <tr><td>↓ 预订点击</td><td>booking_item_click / booking_oneclick_click</td><td>≥25%</td></tr>
+  </table>
+</div>
+
+<!-- 8 -->
+<div class="section" id="s8">
+  <h2><span class="num">8</span>性能指标</h2>
+  <table>
+    <tr><th>指标</th><th>要求</th><th>说明</th></tr>
+    <tr><td>App转发→解析启动</td><td>≤2秒</td><td>从选择"同程旅行"到程星AI界面展示并开始解析</td></tr>
+    <tr><td>AI识别耗时</td><td>≤5秒</td><td>从文本传入到识别结果卡片展示</td></tr>
+    <tr><td>交通查询耗时</td><td>≤5秒</td><td>机票+火车票并行查询，P95</td></tr>
+    <tr><td>酒店查询耗时</td><td>≤5秒</td><td>多位置并行查询（3个位置同时查），P95</td></tr>
+    <tr><td>景点查询耗时</td><td>≤3秒</td><td>P95</td></tr>
+    <tr><td>方案生成耗时</td><td>≤3秒</td><td>从"生成方案"到ABC三套方案卡片展示（含人均均摊计算）</td></tr>
+    <tr><td>人均均摊计算准确率</td><td>100%</td><td>总价÷人数必须精确到分，各分项之和=总价，每人分项之和=人均价；自动化测试覆盖含/不含儿童、不同房型数等场景</td></tr>
+    <tr><td>H5页面加载</td><td>≤2秒</td><td>首屏可交互，微信内WebView</td></tr>
+    <tr><td>投票结果同步延迟</td><td>≤3秒</td><td>投票后其他用户看到更新</td></tr>
+    <tr><td>必要信息识别准确率</td><td>≥90%</td><td>用户未修改即确认的比例</td></tr>
+    <tr><td>偏好归因准确率</td><td>≥85%</td><td>偏好正确归因到发言人的比例（上线后通过用户删除/修正数据统计）</td></tr>
+    <tr><td>服务可用性</td><td>≥99.5%</td><td>程星AI规划服务整体可用性</td></tr>
+    <tr><td>H5投票页可用性</td><td>≥99.9%</td><td>投票页面面向群友，可用性要求更高</td></tr>
+  </table>
+</div>
+
+<!-- 9 -->
+<div class="section" id="s9">
+  <h2><span class="num">9</span>风险与异常</h2>
+
+  <h3>9.1 风险列表</h3>
+  <table>
+    <tr><th>风险类型</th><th>风险描述</th><th>等级</th><th>应对措施</th></tr>
+    <tr><td>技术</td><td>iOS Share Extension传递文本到主程序不稳定，部分iOS版本可能截断长文本</td><td style="color:var(--warning);font-weight:600">中</td><td>通过App Group共享文件而非剪贴板传递；超长文本分段传递；iOS 13+全覆盖测试</td></tr>
+    <tr><td>技术</td><td>偏好归因错误（把A说的话归因给B），导致推荐理由引用错误</td><td style="color:var(--danger);font-weight:700">高</td><td>上线前用真实群聊数据测试归因准确率；用户可在确认卡片中删除/修正偏好；归因置信度低时标注"可能是XX说的"而非确定归因</td></tr>
+    <tr><td>技术</td><td>机票+火车票+酒店多接口并行查询，某一接口超时拖慢整体</td><td style="color:var(--warning);font-weight:600">中</td><td>各品类独立超时（5秒），某品类超时展示"查询中"骨架屏，其他品类先展示；超时后提供"重试"按钮</td></tr>
+    <tr><td>业务</td><td>群聊中5人但只有3人投票，投票结果代表性不足</td><td style="color:var(--warning);font-weight:600">中</td><td>显示已投票/未投票人数；组织者可催促投票；投票率低于50%时提示"参与率较低，结果可能不代表多数人意见"</td></tr>
+    <tr><td>业务</td><td>投票后到预订期间价格变动（尤其国庆高峰期），用户投诉</td><td style="color:var(--danger);font-weight:700">高</td><td>预订前必须刷新实时价格；价格变动超5%弹窗提示；方案卡片上标注"价格实时变动，以预订时为准"</td></tr>
+    <tr><td>业务</td><td>酒店按位置查询时，"外滩附近""迪士尼附近"等模糊位置无精确POI，导致搜索结果不准</td><td style="color:var(--warning);font-weight:600">中</td><td>建立热门景点/商圈别名映射表（"外滩"→外滩POI坐标）；模糊位置时取该区域中心点搜索；展示距离让用户判断</td></tr>
+    <tr><td>数据</td><td>投票H5无需登录，可能被刷票</td><td style="color:var(--warning);font-weight:600">中</td><td>基于微信OpenID限制每人一票；同IP限制投票频率；异常投票模式检测（如1秒内大量投票）</td></tr>
+    <tr><td>合规</td><td>转发群聊消息涉及他人隐私，群友可能不知情</td><td style="color:var(--warning);font-weight:600">中</td><td>App接收转发后明确提示"聊天记录仅用于本次出行规划，不会存储"；投票H5中不展示完整聊天原文，仅展示偏好摘要（如"C想住外滩"）；偏好归因使用群昵称而非真实姓名</td></tr>
+    <tr><td>体验</td><td>分步推荐流程过长（3步+方案+投票+预订），用户中途流失</td><td style="color:var(--warning);font-weight:600">中</td><td>每步展示进度指示（Step 1/3）；每步支持"跳过"和"你决定"快捷操作；已选信息可随时修改；方案生成后可直接预订不强制投票</td></tr>
+    <tr><td>业务</td><td>均摊计算中儿童身份误判（该半价的按全价算或反之），导致人均金额错误</td><td style="color:var(--warning);font-weight:600">中</td><td>识别到可能有儿童时在确认卡片明确标注"含X名儿童"并让用户确认；儿童票规则按各品类官方规则执行（火车1.2m以下免票/1.2-1.5m半价、迪士尼儿童票按年龄）；明细中标注儿童费用行</td></tr>
+    <tr><td>业务</td><td>价格变动后方案卡片人均价与预订清单不一致，用户质疑</td><td style="color:var(--warning);font-weight:600">中</td><td>方案生成时标注"价格实时变动"；进入预订流程前统一刷新一次价格，刷新后同步更新方案卡片、H5和预订清单中的人均价；H5通过版本号/时间戳判断是否需要刷新</td></tr>
+  </table>
+
+  <h3>9.2 边界条件</h3>
+  <table>
+    <tr><th>边界</th><th>规则</th></tr>
+    <tr><td>人数上限</td><td>单次规划最多支持15人（超过时提示"人数较多，建议分批规划"）</td></tr>
+    <tr><td>转发文本长度</td><td>最多支持10000字（约100条消息）；超长时截取最近的旅行相关内容</td></tr>
+    <tr><td>住宿位置偏好上限</td><td>最多展示5个不同位置（超过时AI合并相近位置或选最热门的5个）</td></tr>
+    <tr><td>方案数量</td><td>固定3套（ABC），不支持自定义数量</td></tr>
+    <tr><td>投票时长</td><td>最短1小时，最长7天；默认24小时</td></tr>
+    <tr><td>酒店间数上限</td><td>单次最多8间房</td></tr>
+    <tr><td>出行日期范围</td><td>最多15天（超过时提示"行程较长，建议分段规划"）</td></tr>
+  </table>
+</div>
+
+<!-- 10 -->
+<div class="section" id="s10">
+  <h2><span class="num">10</span>待确认事项</h2>
+
+  <table>
+    <tr><th>#</th><th>事项</th><th>负责方</th><th>状态</th></tr>
+    <tr><td>1</td><td>同程App是否已有Share Extension？如没有，新增扩展的版本排期？</td><td>App团队</td><td>待确认</td></tr>
+    <tr><td>2</td><td>iOS Share Extension能否直接传递完整文本到主程序？还是必须剪贴板中转？需iOS开发验证</td><td>iOS开发</td><td>待技术预研</td></tr>
+    <tr><td>3</td><td>Android端微信"转发到其他应用"是否支持传递多选文本？需Android开发验证</td><td>Android开发</td><td>待技术预研</td></tr>
+    <tr><td>4</td><td>机票和火车票是否有并行查询接口？还是需要分别调用？查询耗时能否控制在5秒内？</td><td>后端</td><td>待评估</td></tr>
+    <tr><td>5</td><td>酒店按POI位置搜索的接口是否支持？多位置并行查询的性能？</td><td>酒店后端</td><td>待评估</td></tr>
+    <tr><td>6</td><td>投票H5页面是独立H5还是嵌入小程序？分享卡片形态（小程序卡片vs H5链接）？</td><td>产品+前端</td><td>待确认</td></tr>
+    <tr><td>7</td><td>投票是否需要微信OpenID授权？如用H5如何获取用户标识？</td><td>前端+微信</td><td>待确认</td></tr>
+    <tr><td>8</td><td>"一键预订"是分别跳转各业务线页面，还是有统一结算页？各业务线是否支持预填信息跳转？</td><td>交易团队</td><td>待确认</td></tr>
+    <tr><td>9</td><td>偏好归因NLP模型是否需要专项训练？还是基于通用大模型prompt工程即可？</td><td>AI团队</td><td>待评估</td></tr>
+    <tr><td>10</td><td>国庆等高峰期价格变动频繁，方案生成到预订之间的价格锁定策略？</td><td>业务方</td><td>待确认</td></tr>
+    <tr><td>11</td><td>投票H5的"我也要用同程规划"引流入口，是引导下载App还是打开小程序？</td><td>运营</td><td>待确认</td></tr>
+    <tr><td>12</td><td>群聊中发言人昵称与微信OpenID的映射关系如何建立？投票时如何判断"谁还没投票"？</td><td>产品+技术</td><td>待确认</td></tr>
+  </table>
+
+  <div class="box box-warning" style="margin-top:24px">
+    <strong>📌 文档说明</strong><br>
+    本文档为程星AI群聊出行智能规划功能的PRD v1.0，聚焦"对话式分步规划+偏好归因+ABC方案投票+一键预订"的核心交互流程。文档基于产品方案v1.1（已确认App转发为主路径、小程序截图OCR为降级路径）进一步细化交互设计。所有示例数据（酒店名/价格/车次等）均为演示用途，实际以接口返回为准。标注"待确认"的事项需与对应团队对齐后更新。
+  </div>
+</div>
+
+</div>
+</body>
+</html>

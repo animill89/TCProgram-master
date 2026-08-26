@@ -2,9 +2,9 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
-import { streamChat } from './api.js';
+import { fetchRailTickets, streamChat } from './api.js';
 
-vi.mock('./api.js', () => ({ sendChat: vi.fn(), streamChat: vi.fn() }));
+vi.mock('./api.js', () => ({ sendChat: vi.fn(), streamChat: vi.fn(), fetchRailTickets: vi.fn() }));
 
 describe('App', () => {
   beforeEach(() => {
@@ -145,6 +145,10 @@ describe('App', () => {
     });
 
     it('分享给 AI 时按原始顺序把选中消息带入 prompt', async () => {
+      fetchRailTickets.mockResolvedValue({ options: [{
+        type: '高铁', train: 'G1', date: '10月1日', departureTime: '08:00', departureStation: '苏州',
+        arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票，¥39，符合人均1500元预算',
+      }] });
       streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('已收到旅行讨论'));
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
@@ -161,13 +165,29 @@ describe('App', () => {
       const sentMessages = streamChat.mock.calls[0][0];
       expect(sentMessages[0].role).toBe('user');
       expect(sentMessages[0].content).not.toMatch(/请分析以下旅行群聊记录/);
-      expect(streamChat.mock.calls[0][1].transportCard[0].train).toBe('G87');
-      expect(sentMessages[0].content.indexOf('我们10月1日国庆节去西安旅游吧！！')).toBeLessThan(
-        sentMessages[0].content.indexOf('我们6个人每人大概1500预算谁去规划一下旅行计划呢？'),
+      expect(fetchRailTickets).toHaveBeenCalledWith(expect.stringContaining('去上海玩吧'));
+      expect(streamChat.mock.calls[0][1].transportCard[0].train).toBe('G1');
+      expect(sentMessages[0].content.indexOf('国庆去上海玩吧！我查了机票还行')).toBeLessThan(
+        sentMessages[0].content.indexOf('高铁吧，飞机延误怕了'),
       );
-      expect(await screen.findByText(/G87/)).toBeInTheDocument();
-      expect(screen.getByText(/CA1234/)).toBeInTheDocument();
+      expect(await screen.findByText(/G1/)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '继续推荐酒店' })).toBeInTheDocument();
+    });
+
+    it('在查询车次期间展示 AI 思考中的加载状态', async () => {
+      fetchRailTickets.mockImplementation(() => new Promise(() => {}));
+      render(<App />);
+      const messages = screen.getAllByRole('article', { name: '消息' });
+
+      vi.useFakeTimers();
+      fireEvent.pointerDown(messages[0]);
+      act(() => vi.advanceTimersByTime(300));
+      fireEvent.pointerUp(messages[0]);
+      vi.useRealTimers();
+      await userEvent.setup().click(screen.getByRole('button', { name: '分享给 AI' }));
+
+      expect(await screen.findByText('AI 思考中…')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
     });
   });
 });

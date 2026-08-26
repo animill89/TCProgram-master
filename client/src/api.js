@@ -22,6 +22,18 @@ export async function sendChat(messages) {
   return payload;
 }
 
+export async function fetchRailTickets(chatRecords) {
+  const response = await fetch('/api/rail-tickets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatRecords }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || '车次查询失败，请稍后重试。');
+  if (!Array.isArray(payload.options) || payload.options.length === 0) throw new Error('未查询到可展示的高铁车次。');
+  return payload;
+}
+
 export async function streamChat(messages, { signal, onDelta, transportCard, hotelOptions }) {
   let response;
   try {

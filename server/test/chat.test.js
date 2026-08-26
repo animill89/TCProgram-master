@@ -134,3 +134,42 @@ describe('POST /api/chat/stream', () => {
     expect(response.text).not.toContain('secret upstream detail');
   });
 });
+
+describe('POST /api/rail-tickets', () => {
+  it('uses Suzhou as origin and extracts the destination from shared records', async () => {
+    const railwayQuery = vi.fn().mockResolvedValue([{ start_train_code: 'G1' }]);
+    const app = createApp({ apiKey: 'test-key', fetchImpl: vi.fn(), railwayQuery });
+
+    const response = await request(app).post('/api/rail-tickets').send({
+      chatRecords: '[用户A 20:41] 10月1号国庆去上海玩吧！',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      fromCity: '苏州',
+      toCity: '上海',
+      tickets: [{ start_train_code: 'G1' }],
+      options: [],
+    });
+    expect(railwayQuery).toHaveBeenCalledWith(expect.objectContaining({
+      fromCity: '苏州',
+      toCity: '上海',
+      date: '2026-10-01',
+    }));
+  });
+
+  it('treats an MCP error string as a failed ticket query', async () => {
+    const app = createApp({
+      apiKey: 'test-key',
+      fetchImpl: vi.fn(),
+      railwayQuery: vi.fn().mockResolvedValue("Cannot read properties of undefined (reading 'result')"),
+    });
+
+    const response = await request(app).post('/api/rail-tickets').send({
+      chatRecords: '[用户A 20:41] 10月1号去上海玩吧！',
+    });
+
+    expect(response.status).toBe(502);
+    expect(response.body.error).toBe('12306 未返回有效的车次数据，请更换日期后重试');
+  });
+});
