@@ -1,6 +1,11 @@
 import express from 'express';
 import { requestCompletion, requestCompletionStream, validateMessages } from './chat.js';
 
+function withTransportInstruction(messages, card) {
+  if (!card) return messages;
+  return [{ role: 'system', content: `你是交通推荐助手。只输出前往目的地的交通推荐，不生成行程、酒店或其他方案。优先遵循聊天中已提及的交通方式。比较高铁与飞机，说明推荐理由并确保符合聊天预算；仅使用以下候选班次，保持班次、时间和价格一致：${JSON.stringify(card)}。` }, ...messages];
+}
+
 export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-chat' } = {}) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
@@ -12,7 +17,7 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-chat' }
     }
 
     try {
-      const message = await requestCompletion(validation.messages, { apiKey, fetchImpl, model });
+      const message = await requestCompletion(withTransportInstruction(validation.messages, req.body?.transportCard), { apiKey, fetchImpl, model });
       return res.json({ message });
     } catch (error) {
       return res.status(error.status ?? 502).json({
@@ -35,7 +40,7 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-chat' }
     res.flushHeaders();
 
     try {
-      for await (const event of requestCompletionStream(validation.messages, { apiKey, fetchImpl, model })) {
+      for await (const event of requestCompletionStream(withTransportInstruction(validation.messages, req.body?.transportCard), { apiKey, fetchImpl, model })) {
         res.write(`event: delta\ndata: ${JSON.stringify({ content: event.content })}\n\n`);
       }
       res.write('event: done\ndata: {}\n\n');

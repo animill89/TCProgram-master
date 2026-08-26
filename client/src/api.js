@@ -22,7 +22,7 @@ export async function sendChat(messages) {
   return payload;
 }
 
-export async function streamChat(messages, { signal, onDelta }) {
+export async function streamChat(messages, { signal, onDelta, transportCard }) {
   let response;
   try {
     response = await fetch('/api/chat/stream', {
@@ -31,7 +31,7 @@ export async function streamChat(messages, { signal, onDelta }) {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, transportCard }),
       signal,
     });
   } catch (error) {

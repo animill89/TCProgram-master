@@ -21,12 +21,13 @@ const discoveries = [
 ];
 
 const groupMessages = [
-  { id: 'g1', senderName: '用户A', content: '我们10月1日国庆节去西安旅游吧！！', timestamp: '20:41' },
+  { id: 'g1', senderName: '用户A', content: '我们10月1日国庆节去西安旅游吧！！10月7日回来！', timestamp: '20:41' },
   { id: 'g2', senderName: '用户B', content: '我们6个人每人大概1500预算谁去规划一下旅行计划呢？', timestamp: '20:42' },
   { id: 'g3', senderName: '用户C', content: '还有酒店定哪一家的？有没有什么什么推荐的', timestamp: '20:43' },
   { id: 'g4', senderName: '用户D', content: '现在同城旅行的程心AI不是很火嘛，让群主将我们的需求发个它让它推荐吧！', timestamp: '20:44' },
   { id: 'g5', senderName: '我', content: '好的', timestamp: '20:45' },
 ];
+const transportOptions = [{ type: '高铁', reason: '价格更低，适合人均1500元预算', train: 'G87', date: '10月1日', departureTime: '08:30', departureStation: '北京西', arrivalTime: '12:58', arrivalStation: '西安北', duration: '4小时28分', price: '¥553' }, { type: '高铁', reason: '上午抵达，方便当天游览', train: 'G571', date: '10月1日', departureTime: '10:15', departureStation: '北京西', arrivalTime: '14:48', arrivalStation: '西安北', duration: '4小时33分', price: '¥553' }, { type: '飞机', reason: '飞行时间短，适合优先节省时间', train: 'CA1234', date: '10月1日', departureTime: '09:20', departureStation: '北京首都', arrivalTime: '11:35', arrivalStation: '西安咸阳', duration: '2小时15分', price: '¥780' }];
 
 function GroupChat({ onShare }) {
   const [chatMessages, setChatMessages] = useState(groupMessages);
@@ -49,7 +50,7 @@ function GroupChat({ onShare }) {
   const cancelLongPress = (id) => { const timer = timers.current.get(id); clearTimeout(timer); timers.current.delete(id); };
   const share = () => {
     const content = chatMessages.filter((message) => selected.includes(message.id)).map((message) => `[${message.senderName} ${message.timestamp}] ${message.content}`).join('\n');
-    onShare(`请分析以下旅行群聊记录，提取目的地、出行日期、人数、预算、交通方式和成员偏好；指出冲突或缺失信息，并给出下一步建议。\n\n群聊记录：\n${content}`);
+    onShare({ content, count: selected.length });
   };
   return <><style>{`.group-message--self::before{left:auto!important;right:-42px!important}.group-message--self .group-message__author{text-align:right}`}</style><section className={`group-chat ${selecting ? 'group-chat--selecting' : ''}`} aria-label="旅行群聊" style={{ margin: '0 -18px', minHeight: '100dvh' }}>
     <header className="group-chat__header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10, margin: 0, width: '100%', background: '#f7f7f7' }}>{selecting ? <><button type="button" onClick={() => { setSelecting(false); setSelected([]); }}>取消</button><strong>已选择 {selected.length} 条消息</strong><span aria-hidden="true">⌕</span></> : <h1>旅行群聊（6 人）</h1>}</header>
@@ -64,6 +65,7 @@ function MessageBubble({ message }) {
       ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
       : message.role === 'user' ? <p>{message.content}</p> : null}
     {message.error && <p className="message__error">{message.error}</p>}
+    {message.transportOptions?.map((option) => <section className="train-card" aria-label={`${option.type}班次推荐`} key={option.train}><b>{option.type}推荐 · {option.reason}</b><div><strong>{option.departureTime}</strong><span>{option.departureStation}</span><em>{option.train} · {option.duration}</em><strong>{option.arrivalTime}</strong><span>{option.arrivalStation}</span><i>{option.price}</i></div><small>{option.date} · 单程</small><button type="button">订票</button></section>)}
   </article>;
 }
 
@@ -86,10 +88,11 @@ export default function App() {
 
   useEffect(() => () => activeRequest.current?.abort(), []);
 
-  const submit = async (value = draft) => {
+  const submit = async (value = draft, options = {}) => {
     const content = value.trim();
     if (!content || isPending) return;
-    const nextMessages = [...messages, { role: 'user', content }];
+    const nextMessages = [...messages, { role: 'user', content: options.visibleContent || content }];
+    const requestMessages = [...messages.filter((message) => !message.transportOptions), { role: 'user', content }];
     const assistantId = `assistant-${++messageSequence.current}`;
     const controller = new AbortController();
     activeRequest.current?.abort();
@@ -98,12 +101,16 @@ export default function App() {
     setDraft('');
     setIsPending(true);
     try {
-      await streamChat(nextMessages, {
+      await streamChat(requestMessages, {
         signal: controller.signal,
+        transportCard: options.transportCard,
         onDelta: (delta) => setMessages((current) => current.map((message) => (
           message.id === assistantId ? { ...message, content: message.content + delta } : message
         ))),
       });
+      if (options.transportOptions) setMessages((current) => current.map((message) => (
+        message.id === assistantId ? { ...message, transportOptions: options.transportOptions } : message
+      )));
     } catch (error) {
       if (error?.name !== 'AbortError') {
         setMessages((current) => current.map((message) => (
@@ -115,7 +122,7 @@ export default function App() {
       setIsPending(false);
     }
   };
-  const openAiWithPrompt = (prompt) => { window.history.pushState({}, '', '/ai'); setRoute('/ai'); submit(prompt); };
+  const openAiWithPrompt = ({ content, count }) => { window.history.pushState({}, '', '/ai'); setRoute('/ai'); submit(content, { visibleContent: `已分享 ${count} 条聊天记录\n帮我制定旅行规划`, transportCard: transportOptions, transportOptions }); };
   const onKeyDown = (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); } };
   return <main className={`trip-app ${isChatting ? 'trip-app--chatting' : ''}`} style={(route === '/' || route === '/group-chat') ? { background: '#f5f5f5' } : undefined}>
     <div className="phone-status" aria-hidden="true"><b>20:41</b><span>● ● ●　5G ▮▮▮　⌁</span></div>

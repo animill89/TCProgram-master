@@ -160,10 +160,13 @@ describe('App', () => {
       await waitFor(() => expect(streamChat).toHaveBeenCalled());
       const sentMessages = streamChat.mock.calls[0][0];
       expect(sentMessages[0].role).toBe('user');
-      expect(sentMessages[0].content).toMatch(/请分析以下旅行群聊记录/);
+      expect(sentMessages[0].content).not.toMatch(/请分析以下旅行群聊记录/);
+      expect(streamChat.mock.calls[0][1].transportCard[0].train).toBe('G87');
       expect(sentMessages[0].content.indexOf('我们10月1日国庆节去西安旅游吧！！')).toBeLessThan(
         sentMessages[0].content.indexOf('我们6个人每人大概1500预算谁去规划一下旅行计划呢？'),
       );
+      expect(await screen.findByText(/G87/)).toBeInTheDocument();
+      expect(screen.getByText(/CA1234/)).toBeInTheDocument();
     });
   });
 });
