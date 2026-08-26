@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
 import { streamChat } from './api.js';
 
@@ -9,6 +9,7 @@ vi.mock('./api.js', () => ({ sendChat: vi.fn(), streamChat: vi.fn() }));
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.pushState({}, '', '/ai');
   });
 
   it('uses the supplied local images in the lower travel feed', () => {
@@ -90,5 +91,70 @@ describe('App', () => {
 
     expect(await screen.findByRole('table')).toHaveTextContent('Tower');
     expect(screen.getByRole('columnheader', { name: 'Height' })).toBeInTheDocument();
+  });
+
+  describe('群聊旅行页面', () => {
+    beforeEach(() => {
+      window.history.pushState({}, '', '/group-chat');
+    });
+
+    afterEach(() => {
+      window.history.pushState({}, '', '/');
+    });
+
+    it('在群聊路由展示群聊标题和 mock 消息', () => {
+      render(<App />);
+
+      expect(screen.getByRole('heading', { name: /旅行群聊/ })).toBeInTheDocument();
+      expect(screen.getAllByRole('article', { name: '消息' }).length).toBeGreaterThan(1);
+    });
+
+    it('长按消息进入多选模式并默认选中该消息', async () => {
+      vi.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      render(<App />);
+      const message = screen.getAllByRole('article', { name: '消息' })[0];
+
+      await user.pointer({ target: message, keys: '[MouseLeft>]' });
+      vi.advanceTimersByTime(600);
+      await user.pointer({ target: message, keys: '[/MouseLeft]' });
+
+      expect(screen.getByText(/已选择 1 条/)).toBeInTheDocument();
+      expect(message).toHaveAttribute('aria-checked', 'true');
+      vi.useRealTimers();
+    });
+
+    it('点击消息可切换选中状态', async () => {
+      render(<App />);
+      const messages = screen.getAllByRole('article', { name: '消息' });
+
+      fireEvent.pointerDown(messages[0]);
+      fireEvent.pointerUp(messages[0]);
+      fireEvent.click(messages[1]);
+
+      expect(messages[0]).toHaveAttribute('aria-checked', 'true');
+      expect(messages[1]).toHaveAttribute('aria-checked', 'true');
+      fireEvent.click(messages[0]);
+      expect(messages[0]).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('分享给 AI 时按原始顺序把选中消息带入 prompt', async () => {
+      streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('已收到旅行讨论'));
+      render(<App />);
+      const messages = screen.getAllByRole('article', { name: '消息' });
+
+      fireEvent.pointerDown(messages[1]);
+      fireEvent.pointerUp(messages[1]);
+      fireEvent.click(messages[0]);
+      await userEvent.setup().click(screen.getByRole('button', { name: '分享给 AI' }));
+
+      await waitFor(() => expect(streamChat).toHaveBeenCalled());
+      const sentMessages = streamChat.mock.calls[0][0];
+      expect(sentMessages[0].role).toBe('user');
+      expect(sentMessages[0].content).toMatch(/请分析以下旅行群聊记录/);
+      expect(sentMessages[0].content.indexOf(messages[0].textContent)).toBeLessThan(
+        sentMessages[0].content.indexOf(messages[1].textContent),
+      );
+    });
   });
 });
