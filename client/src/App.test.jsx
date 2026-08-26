@@ -2,9 +2,9 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
-import { fetchRailTickets, streamChat } from './api.js';
+import { fetchHotels, fetchRailTickets, streamChat } from './api.js';
 
-vi.mock('./api.js', () => ({ sendChat: vi.fn(), streamChat: vi.fn(), fetchRailTickets: vi.fn() }));
+vi.mock('./api.js', () => ({ sendChat: vi.fn(), streamChat: vi.fn(), fetchRailTickets: vi.fn(), fetchHotels: vi.fn() }));
 
 describe('App', () => {
   beforeEach(() => {
@@ -172,6 +172,9 @@ describe('App', () => {
       );
       expect(await screen.findByText(/G1/)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '继续推荐酒店' })).toBeInTheDocument();
+      fetchHotels.mockResolvedValue({ options: [] });
+      await userEvent.setup().click(screen.getByRole('link', { name: '继续推荐酒店' }));
+      await waitFor(() => expect(fetchHotels).toHaveBeenCalled());
     });
 
     it('在查询车次期间展示 AI 思考中的加载状态', async () => {
@@ -193,6 +196,29 @@ describe('App', () => {
       expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
       resolveTickets({ options: [{ type: '高铁', train: 'G1', date: '8月29日', departureTime: '08:00', departureStation: '苏州', arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票' }] });
       await waitFor(() => expect(streamChat).toHaveBeenCalled());
+    });
+
+    it('在查询酒店期间展示继续推荐酒店和思考状态', async () => {
+      fetchRailTickets.mockResolvedValue({ options: [{ type: '高铁', train: 'G1', date: '8月29日', departureTime: '08:00', departureStation: '苏州', arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票' }] });
+      streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('交通推荐完成'));
+      let resolveHotels;
+      fetchHotels.mockImplementation(() => new Promise((resolve) => { resolveHotels = resolve; }));
+      render(<App />);
+      const messages = screen.getAllByRole('article', { name: '消息' });
+
+      vi.useFakeTimers();
+      fireEvent.pointerDown(messages[0]);
+      act(() => vi.advanceTimersByTime(300));
+      fireEvent.pointerUp(messages[0]);
+      vi.useRealTimers();
+      await userEvent.setup().click(screen.getByRole('button', { name: '分享给 AI' }));
+      await screen.findByRole('link', { name: '继续推荐酒店' });
+      await userEvent.setup().click(screen.getByRole('link', { name: '继续推荐酒店' }));
+
+      expect((await screen.findAllByText('继续推荐酒店')).length).toBe(2);
+      expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
+      resolveHotels({ options: [{ id: 1, name: '上海外滩酒店', room: '高级双床房', distance: '外滩附近', reason: '支持免费取消', price: '¥650/晚', bookingUrl: 'https://example.com' }] });
+      await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
     });
   });
 });

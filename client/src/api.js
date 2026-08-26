@@ -34,6 +34,18 @@ export async function fetchRailTickets(chatRecords) {
   return payload;
 }
 
+export async function fetchHotels(chatRecords) {
+  const response = await fetch('/api/hotels', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatRecords }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || '酒店查询失败，请稍后重试。');
+  if (!Array.isArray(payload.options) || payload.options.length === 0) throw new Error('未查询到可展示的酒店与房型。');
+  return payload;
+}
+
 export async function streamChat(messages, { signal, onDelta, transportCard, hotelOptions }) {
   let response;
   try {

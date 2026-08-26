@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { fetchRailTickets, streamChat } from './api.js';
+import { fetchHotels, fetchRailTickets, streamChat } from './api.js';
 import './App.css';
 import './H5-fixes.css';
 import './GroupChat.css';
@@ -87,6 +87,8 @@ export default function App() {
   const [isPending, setIsPending] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const [pendingShare, setPendingShare] = useState('');
+  const [pendingHotel, setPendingHotel] = useState('');
+  const [sharedRecords, setSharedRecords] = useState('');
   const activeRequest = useRef(null);
   const messageSequence = useRef(0);
   const isChatting = messages.length > 0 || isPending || isPreparing;
@@ -136,6 +138,7 @@ export default function App() {
     const visibleContent = `已分享 ${count} 条聊天记录\n帮我制定旅行规划`;
     window.history.pushState({}, '', '/ai');
     setRoute('/ai');
+    setSharedRecords(content);
     setPendingShare(visibleContent);
     setIsPreparing(true);
     try {
@@ -149,12 +152,27 @@ export default function App() {
       setIsPreparing(false);
     }
   };
-  const continueHotel = () => setMessages((current) => [...current, { id: `assistant-${++messageSequence.current}`, role: 'assistant', content: '', error: '尚未接入酒店实时数据源，暂不展示模拟酒店推荐。' }]);
+  const continueHotel = async () => {
+    if (!sharedRecords || isPending) return;
+    const visibleContent = '继续推荐酒店';
+    setPendingHotel(visibleContent);
+    setIsPreparing(true);
+    try {
+      const { options } = await fetchHotels(sharedRecords);
+      setPendingHotel('');
+      submit('请继续推荐酒店', { visibleContent, hotelOptions: options });
+    } catch (error) {
+      setMessages((current) => [...current, { role: 'user', content: visibleContent }, { id: `assistant-${++messageSequence.current}`, role: 'assistant', content: '', error: error.message }]);
+      setPendingHotel('');
+    } finally {
+      setIsPreparing(false);
+    }
+  };
   const onKeyDown = (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); } };
   return <main className={`trip-app ${isChatting ? 'trip-app--chatting' : ''}`} style={(route === '/' || route === '/group-chat') ? { background: '#f5f5f5' } : undefined}>
     <div className="phone-status" aria-hidden="true"><b>20:41</b><span>● ● ●　5G ▮▮▮　⌁</span></div>
     <header className="trip-header"><button type="button" className="back-button" aria-label="返回首页" onClick={() => setMessages([])}>‹</button><div className="trip-mark" aria-label="DeepTrip 标志">✦</div><div className="header-actions"><button type="button" aria-label="更多操作">•••</button><button type="button" aria-label="打开设置">◉</button></div></header>
-    <section className="page-content" aria-live="polite" aria-label="对话内容" style={(route === '/' || route === '/group-chat') ? { background: '#f5f5f5', paddingBottom: 0 } : undefined}>{route === '/' || route === '/group-chat' ? <GroupChat onShare={openAiWithPrompt} /> : isChatting ? <div className="chat-view"><h1>旅行 AI 助手</h1>{pendingShare && <MessageBubble message={{ role: 'user', content: pendingShare }} onContinueHotel={continueHotel} />}{messages.map((message, index) => <MessageBubble key={message.id || `${message.role}-${index}`} message={message} onContinueHotel={continueHotel} />)}{(isPreparing || isPending) && !messages.at(-1)?.content && <div className="thinking" role="status" aria-label="AI 思考中"><span className="thinking__spinner" aria-hidden="true" />AI 思考中…</div>}</div> : <Home onSuggestion={submit} />}</section>
+    <section className="page-content" aria-live="polite" aria-label="对话内容" style={(route === '/' || route === '/group-chat') ? { background: '#f5f5f5', paddingBottom: 0 } : undefined}>{route === '/' || route === '/group-chat' ? <GroupChat onShare={openAiWithPrompt} /> : isChatting ? <div className="chat-view"><h1>旅行 AI 助手</h1>{pendingShare && <MessageBubble message={{ role: 'user', content: pendingShare }} onContinueHotel={continueHotel} />}{messages.map((message, index) => <MessageBubble key={message.id || `${message.role}-${index}`} message={message} onContinueHotel={continueHotel} />)}{pendingHotel && <MessageBubble message={{ role: 'user', content: pendingHotel }} onContinueHotel={continueHotel} />}{(isPreparing || (isPending && !messages.at(-1)?.content)) && <div className="thinking" role="status" aria-label="AI 思考中"><span className="thinking__spinner" aria-hidden="true" />AI 思考中…</div>}</div> : <Home onSuggestion={submit} />}</section>
     <form className="mobile-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}><label className="sr-only" htmlFor="chat-input">消息输入框</label><textarea id="chat-input" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="发消息或按住说话…" rows="1" disabled={isPending} /><button type="submit" disabled={!draft.trim() || isPending} aria-label="发送消息"><span aria-hidden="true">⌁</span></button></form>
     <div className="home-indicator" aria-hidden="true" />
   </main>;

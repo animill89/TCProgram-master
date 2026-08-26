@@ -1,6 +1,7 @@
 import express from 'express';
 import { requestCompletion, requestCompletionStream, validateMessages } from './chat.js';
 import { queryRailTickets } from './railway.js';
+import { queryHotels } from './hotel.js';
 import { extractDestinationCity, extractTravelDate, normalizeRailTickets } from './travel.js';
 
 function withTransportInstruction(messages, card) {
@@ -12,7 +13,14 @@ function withHotelInstruction(messages, hotels) {
   return [{ role: 'system', content: `只输出酒店推荐、对应房型、距离提示和推荐理由，不输出交通或行程。只推荐靠近地铁站或商圈、且每晚价格不超过700元的房型。仅使用以下数据并保持一致：${JSON.stringify(hotels)}。` }, ...messages];
 }
 
-export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flash', railwayQuery = queryRailTickets } = {}) {
+function inferHotelPlace(records, destination) {
+  if (records.includes('外滩')) return `${destination}外滩`;
+  if (records.includes('迪士尼')) return `${destination}迪士尼度假区`;
+  if (records.includes('虹桥')) return `${destination}虹桥火车站`;
+  return destination;
+}
+
+export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flash', railwayQuery = queryRailTickets, hotelQuery = queryHotels, rollingGoApiKey = process.env.ROLLINGGO_API_KEY } = {}) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 
@@ -28,6 +36,21 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
       return res.json({ fromCity, toCity, tickets, options: normalizeRailTickets(tickets) });
     } catch (error) {
       return res.status(502).json({ error: error.message || '12306 查询失败，请稍后重试' });
+    }
+  });
+
+  app.post('/api/hotels', async (req, res) => {
+    const { chatRecords } = req.body ?? {};
+    const destination = extractDestinationCity(chatRecords);
+    const date = extractTravelDate(chatRecords);
+    if (!destination || !date) return res.status(400).json({ error: '聊天记录中未识别到目的地城市或入住日期' });
+    const place = inferHotelPlace(chatRecords, destination);
+    try {
+      const options = await hotelQuery({ apiKey: rollingGoApiKey, date, place, originQuery: chatRecords });
+      if (!Array.isArray(options) || options.length === 0) throw new Error('未查询到符合预算的酒店与房型');
+      return res.json({ place, options });
+    } catch (error) {
+      return res.status(502).json({ error: error.message || '酒店查询失败，请稍后重试' });
     }
   });
 

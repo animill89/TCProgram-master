@@ -186,3 +186,18 @@ describe('POST /api/rail-tickets', () => {
     expect(response.body.error).toBe('12306 未返回有效的车次数据，请更换日期后重试');
   });
 });
+
+describe('POST /api/hotels', () => {
+  it('uses the shared hotel preference and returns only live hotel card data', async () => {
+    const hotelQuery = vi.fn().mockResolvedValue([{ id: 1, name: '上海外滩酒店' }]);
+    const app = createApp({ apiKey: 'test-key', fetchImpl: vi.fn(), hotelQuery });
+
+    const response = await request(app).post('/api/hotels').send({
+      chatRecords: '[用户A] 本周六去上海玩吧！住外滩附近',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ place: '上海外滩', options: [{ id: 1, name: '上海外滩酒店' }] });
+    expect(hotelQuery).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-08-29', place: '上海外滩' }));
+  });
+});
