@@ -46,7 +46,7 @@ export async function fetchHotels(chatRecords) {
   return payload;
 }
 
-export async function streamChat(messages, { signal, onDelta, onTransport, transportCard, transportOnly, hotelOptions }) {
+export async function streamChat(messages, { signal, onDelta, onTransport, onHotel, transportCard, transportOnly, hotelOnly, hotelOptions }) {
   let response;
   try {
     response = await fetch('/api/chat/stream', {
@@ -55,7 +55,7 @@ export async function streamChat(messages, { signal, onDelta, onTransport, trans
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
-      body: JSON.stringify({ messages, transportCard, transportOnly, hotelOptions }),
+      body: JSON.stringify({ messages, transportCard, transportOnly, hotelOnly, hotelOptions }),
       signal,
     });
   } catch (error) {
@@ -74,6 +74,7 @@ export async function streamChat(messages, { signal, onDelta, onTransport, trans
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let result = {};
 
   const consumeEvent = (record) => {
     const event = record.match(/^event:\s*(.+)$/m)?.[1]?.trim();
@@ -98,7 +99,11 @@ export async function streamChat(messages, { signal, onDelta, onTransport, trans
       throw new Error(payload.message || 'AI 服务暂时不可用，请稍后重试。');
     }
     if (event === 'transport') {
-      if (Array.isArray(payload.options)) onTransport?.(payload.options);
+      if (Array.isArray(payload.options)) { result.transportOptions = payload.options; onTransport?.(payload.options); }
+      return false;
+    }
+    if (event === 'hotel') {
+      if (Array.isArray(payload.options)) { result.hotelOptions = payload.options; onHotel?.(payload.options); }
       return false;
     }
     return event === 'done';
@@ -111,10 +116,11 @@ export async function streamChat(messages, { signal, onDelta, onTransport, trans
     const records = buffer.split(/\r?\n\r?\n/);
     buffer = records.pop();
     for (const record of records) {
-      if (consumeEvent(record)) return;
+      if (consumeEvent(record)) return result;
     }
   }
 
   buffer += decoder.decode();
   if (buffer.trim()) consumeEvent(buffer);
+  return result;
 }

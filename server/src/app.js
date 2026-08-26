@@ -22,9 +22,41 @@ function extractTransportResult(content) {
   }
   return { content: content.replace(match[0], '').trim(), options };
 }
-function withHotelInstruction(messages, hotels) {
-  if (!hotels) return messages;
+function withHotelInstruction(messages, hotels, hotelOnly = false) {
+  if (!hotels && !hotelOnly) return messages;
+  if (hotelOnly) return [{ role: 'system', content: '仅输出酒店、房型、距离和推荐理由，不输出交通、行程或反问。先用固定中文模板给出推荐；随后在回复最后单独输出且只输出一次 JSON 代码块：```json\n{"hotelCards":[{"id":"唯一标识","name":"酒店名","room":"明确房型或房型以预订页为准","distance":"距离地铁、商圈或景点","reason":"推荐理由","price":"¥价格/晚或价格以预订页为准","bookingUrl":"预订链接或空字符串"}]}\n```。酒店正文与 hotelCards 必须完全一致；没有候选时 hotelCards 为 []。' }, ...messages];
   return [{ role: 'system', content: `只输出酒店推荐、对应房型、距离提示和推荐理由，不输出交通或行程。只推荐靠近地铁站或商圈、且每晚价格不超过700元的房型。仅使用以下数据并保持一致：${JSON.stringify(hotels)}。` }, ...messages];
+}
+
+function extractHotelResult(content) {
+  const jsonBlock = content.match(/```json\s*([\s\S]*?)\s*```/i);
+  if (jsonBlock) {
+    try {
+      const payload = JSON.parse(jsonBlock[1]);
+      const options = Array.isArray(payload.hotelCards) ? payload.hotelCards.filter((item) => item && ['id', 'name', 'room', 'distance', 'reason', 'price'].every((key) => typeof item[key] === 'string')) : [];
+      return { content: content.replace(jsonBlock[0], '').trim(), options };
+    } catch { return { content: content.replace(jsonBlock[0], '').trim(), options: [] }; }
+  }
+  const match = content.match(/<!--HOTEL_OPTIONS:(\[[\s\S]*?\])-->/);
+  if (!match) return { content, options: parseHotelsFromText(content) };
+  try {
+    const options = JSON.parse(match[1]);
+    const valid = Array.isArray(options) ? options.filter((item) => item && ['id', 'name', 'room', 'distance', 'reason', 'price'].every((key) => typeof item[key] === 'string')) : [];
+    return { content: content.replace(match[0], '').trim(), options: valid.length ? valid : parseHotelsFromText(content) };
+  } catch { return { content: content.replace(match[0], '').trim(), options: parseHotelsFromText(content) }; }
+}
+
+function parseHotelsFromText(content) {
+  const lines = content.split('\n');
+  let distance = '目的地附近';
+  return lines.flatMap((line, index) => {
+    if (/外滩|迪士尼|虹桥|地铁|商圈/.test(line) && !line.trim().startsWith('-')) distance = line.replace(/[*#①②③：:]/g, '').trim();
+    const match = line.match(/^\s*[-•]\s*(?:\*\*)?([^*：:—-]+?)(?:\*\*)?(?:（[^）]*）)?\s*[：:—-]\s*(.+)$/);
+    if (!match) return [];
+    const detail = match[2];
+    const price = detail.match(/¥\s?\d+(?:[-–]\d+)?(?:起|\/晚)?/)?.[0] ?? '价格以预订页为准';
+    return [{ id: `ai-hotel-${index}`, name: match[1].trim(), room: '房型以预订页为准', distance, reason: detail.replace(/参考\s?¥\s?\d+(?:[-–]\d+)?(?:起|\/晚)?/, '').trim(), price }];
+  });
 }
 
 function inferHotelPlace(records, destination) {
@@ -34,13 +66,22 @@ function inferHotelPlace(records, destination) {
   return destination;
 }
 
+function fillHotelOptions(options, place) {
+  const mockHotels = [
+    { id: 'mock-hotel-1', name: `${place}精选酒店`, room: '高级双床房', distance: `${place}附近`, reason: '模拟补充推荐，位置便利', price: '¥468/晚', isMock: true },
+    { id: 'mock-hotel-2', name: `${place}舒适酒店`, room: '豪华大床房', distance: `距${place}约500米`, reason: '模拟补充推荐，适合预算出行', price: '¥528/晚', isMock: true },
+    { id: 'mock-hotel-3', name: `${place}商旅酒店`, room: '行政双床房', distance: `${place}商圈附近`, reason: '模拟补充推荐，出行方便', price: '¥598/晚', isMock: true },
+  ];
+  return [...options, ...mockHotels].slice(0, 3);
+}
+
 export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flash', railwayQuery = queryRailTickets, hotelQuery = queryHotels, rollingGoApiKey = process.env.ROLLINGGO_API_KEY } = {}) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 
   app.post('/api/rail-tickets', async (req, res) => {
     const { chatRecords } = req.body ?? {};
-    const fromCity = '苏州';
+    const fromCity = '成都';
     const toCity = extractDestinationCity(chatRecords);
     const date = extractTravelDate(chatRecords);
     if (!toCity || !date) return res.status(400).json({ error: '聊天记录中未识别到目的地城市或出发日期' });
@@ -62,7 +103,7 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
     try {
       const options = await hotelQuery({ apiKey: rollingGoApiKey, date, place, originQuery: chatRecords });
       if (!Array.isArray(options) || options.length === 0) throw new Error('未查询到符合预算的酒店与房型');
-      return res.json({ place, options });
+      return res.json({ place, options: fillHotelOptions(options, place) });
     } catch (error) {
       return res.status(502).json({ error: error.message || '酒店查询失败，请稍后重试' });
     }
@@ -75,7 +116,7 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
     }
 
     try {
-      const message = await requestCompletion(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, req.body?.transportOnly), req.body?.hotelOptions), { apiKey, fetchImpl, model });
+      const message = await requestCompletion(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, req.body?.transportOnly), req.body?.hotelOptions, req.body?.hotelOnly), { apiKey, fetchImpl, model });
       return res.json({ message });
     } catch (error) {
       return res.status(error.status ?? 502).json({
@@ -99,15 +140,31 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
 
     try {
       const transportOnly = Boolean(req.body?.transportOnly);
+      const hotelOnly = Boolean(req.body?.hotelOnly);
       let combinedContent = '';
-      for await (const event of requestCompletionStream(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, transportOnly), req.body?.hotelOptions), { apiKey, fetchImpl, model })) {
-        if (transportOnly) combinedContent += event.content;
+      let sentLength = 0;
+      const marker = transportOnly ? '<!--TRANSPORT_OPTIONS:' : hotelOnly ? '<!--HOTEL_OPTIONS:' : '';
+      for await (const event of requestCompletionStream(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, transportOnly), req.body?.hotelOptions, hotelOnly), { apiKey, fetchImpl, model })) {
+        if (transportOnly || hotelOnly) {
+          combinedContent += event.content;
+          const markerIndex = combinedContent.indexOf(marker);
+          const safeEnd = markerIndex >= 0 ? markerIndex : Math.max(sentLength, combinedContent.length - marker.length + 1);
+          if (safeEnd > sentLength) {
+            res.write(`event: delta\ndata: ${JSON.stringify({ content: combinedContent.slice(sentLength, safeEnd) })}\n\n`);
+            sentLength = safeEnd;
+          }
+        }
         else res.write(`event: delta\ndata: ${JSON.stringify({ content: event.content })}\n\n`);
       }
       if (transportOnly) {
         const result = extractTransportResult(combinedContent);
-        if (result.content) res.write(`event: delta\ndata: ${JSON.stringify({ content: result.content })}\n\n`);
+        if (result.content.length > sentLength) res.write(`event: delta\ndata: ${JSON.stringify({ content: result.content.slice(sentLength) })}\n\n`);
         res.write(`event: transport\ndata: ${JSON.stringify({ options: result.options })}\n\n`);
+      }
+      if (hotelOnly) {
+        const result = extractHotelResult(combinedContent);
+        if (result.content.length > sentLength) res.write(`event: delta\ndata: ${JSON.stringify({ content: result.content.slice(sentLength) })}\n\n`);
+        res.write(`event: hotel\ndata: ${JSON.stringify({ options: result.options })}\n\n`);
       }
       res.write('event: done\ndata: {}\n\n');
     } catch (error) {

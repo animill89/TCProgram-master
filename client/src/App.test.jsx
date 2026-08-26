@@ -172,9 +172,9 @@ describe('App', () => {
       );
       expect(await screen.findByLabelText('高铁班次推荐')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '继续推荐酒店' })).toBeInTheDocument();
-      fetchHotels.mockResolvedValue({ options: [] });
       await userEvent.setup().click(screen.getByRole('link', { name: '继续推荐酒店' }));
-      await waitFor(() => expect(fetchHotels).toHaveBeenCalled());
+      await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
+      expect(fetchHotels).not.toHaveBeenCalled();
     });
 
     it('联网 AI 请求期间展示 AI 思考中的加载状态，且不预取车次', async () => {
@@ -192,6 +192,7 @@ describe('App', () => {
 
       expect(await screen.findByText(/已分享 1 条聊天记录/)).toBeInTheDocument();
       expect(await screen.findByText('AI 思考中…')).toBeInTheDocument();
+      expect(screen.getByText('正在搜索苏州至目的地的交通方案')).toBeInTheDocument();
       expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
       await waitFor(() => expect(streamChat).toHaveBeenCalled());
       expect(fetchRailTickets).not.toHaveBeenCalled();
@@ -199,9 +200,10 @@ describe('App', () => {
     });
 
     it('在查询酒店期间展示继续推荐酒店和思考状态', async () => {
-      streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('交通推荐完成'));
-      let resolveHotels;
-      fetchHotels.mockImplementation(() => new Promise((resolve) => { resolveHotels = resolve; }));
+      streamChat.mockImplementation(async (_messages, { onDelta, onHotel }) => {
+        onDelta('交通推荐完成');
+        if (streamChat.mock.calls.length > 1) onHotel?.([{ id: 'hotel-1', name: '上海外滩酒店', room: '高级双床房', distance: '外滩附近', reason: '支持免费取消', price: '¥650/晚' }]);
+      });
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
 
@@ -214,10 +216,10 @@ describe('App', () => {
       await screen.findByRole('link', { name: '继续推荐酒店' });
       await userEvent.setup().click(screen.getByRole('link', { name: '继续推荐酒店' }));
 
-      expect((await screen.findAllByText('继续推荐酒店')).length).toBe(2);
-      expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
-      resolveHotels({ options: [{ id: 1, name: '上海外滩酒店', room: '高级双床房', distance: '外滩附近', reason: '支持免费取消', price: '¥650/晚', bookingUrl: 'https://example.com' }] });
+      expect(await screen.findByText('上海外滩酒店')).toBeInTheDocument();
+      expect(streamChat.mock.calls[1][0][0].content).toContain('去上海玩吧');
       await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
+      expect(fetchHotels).not.toHaveBeenCalled();
     });
   });
 });

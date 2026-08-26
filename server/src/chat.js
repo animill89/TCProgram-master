@@ -9,12 +9,12 @@ function upstreamErrorMessage(status) {
 }
 
 function responseRequest(model, messages, stream) {
+  const usesMcpData = messages.some((message) => message.role === 'system' && /12306|仅使用以下数据|保持一致/.test(message.content));
   return {
     model,
     input: messages,
     instructions: '联网搜索结果优先用于生成推荐与说明；若对话中提供了 12306 或酒店 MCP 数据，则将其作为补充信息与卡片数据使用。不要声称任何价格或余票实时准确。',
-    tools: [{ type: 'web_search' }],
-    tool_choice: 'required',
+    ...(usesMcpData ? {} : { tools: [{ type: 'web_search' }], tool_choice: 'required' }),
     stream,
   };
 }

@@ -220,7 +220,10 @@ describe('POST /api/hotels', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ place: '上海外滩', options: [{ id: 1, name: '上海外滩酒店' }] });
+    expect(response.body.place).toBe('上海外滩');
+    expect(response.body.options).toHaveLength(3);
+    expect(response.body.options[0]).toEqual({ id: 1, name: '上海外滩酒店' });
+    expect(response.body.options[1].isMock).toBe(true);
     expect(hotelQuery).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-08-29', place: '上海外滩' }));
   });
 });
