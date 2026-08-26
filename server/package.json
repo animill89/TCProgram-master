@@ -1,0 +1,19 @@
+{
+  "name": "deepseek-ai-chat-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8"
+  }
+}

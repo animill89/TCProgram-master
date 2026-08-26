@@ -1,0 +1,12 @@
+{
+  "name": "deepseek-ai-chat",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "test": "npm test --prefix server -- --run && npm test --prefix client -- --run"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
