@@ -155,7 +155,7 @@ export default function App() {
     setIsPreparing(true);
     fetchRailTickets(content).then(({ options }) => {
       setPendingShare('');
-      submit(content, { visibleContent, transportCard: options, transportOptions: options, progress: '正在根据真实车次生成推荐' });
+      submit(content, { visibleContent, transportCard: options, transportOnly: true, progress: '正在查询预算内高铁与参考机票' });
     }).catch((error) => setMessages([{ role: 'user', content: visibleContent }, { id: `assistant-${++messageSequence.current}`, role: 'assistant', content: '', error: error.message }])).finally(() => setIsPreparing(false));
   };
   const continueHotel = async () => {

@@ -6,7 +6,7 @@ import { extractDestinationCity, extractTravelDate, normalizeRailTickets } from 
 
 function withTransportInstruction(messages, card, transportOnly = false) {
   if (!card && !transportOnly) return messages;
-  if (transportOnly) return [{ role: 'system', content: '你是交通推荐助手。出发地固定为苏州，目的地从聊天记录中识别；不得询问用户从哪里出发。仅输出苏州到目的地的交通推荐，不输出行程、酒店、景点、餐饮或其他内容。优先使用联网搜索的结果，推荐 2 至 3 种合适选择，可包含高铁和飞机，并说明预算适配理由。回复末尾必须附加且只附加一次以下 HTML 注释，数组每项字段必须完整：<!--TRANSPORT_OPTIONS:[{"type":"高铁或飞机","train":"车次或航班号","date":"出发日期","departureTime":"HH:mm","departureStation":"出发站或机场","arrivalTime":"HH:mm","arrivalStation":"到达站或机场","duration":"时长","price":"价格","reason":"推荐理由"}]-->。注释之外仅保留给用户看的交通说明；没有可靠候选时输出空数组，禁止编造。' }, ...messages];
+  if (transportOnly) return [{ role: 'system', content: `你是交通推荐助手。出发地固定为成都，目的地从聊天记录识别；仅输出交通推荐，不得输出行程、酒店或反问。以下是12306 MCP 已筛选出的预算内真实高铁数据，必须原样用于高铁卡片：${JSON.stringify(card ?? [])}。再使用联网搜索补充预算内的参考机票；机票仅展示预算内候选，并在理由标注“参考价格，以购票页为准”。回复末尾附加一次 <!--TRANSPORT_OPTIONS:[{"type":"高铁或飞机","train":"车次或航班号","date":"出发日期","departureTime":"HH:mm","departureStation":"出发站或机场","arrivalTime":"HH:mm","arrivalStation":"到达站或机场","duration":"时长","price":"价格","reason":"推荐理由"}]-->。` }, ...messages];
   return [{ role: 'system', content: `你是交通推荐助手。只输出前往目的地的高铁推荐，不生成飞机、行程、酒店或其他方案。优先遵循聊天中已提及的交通方式。只使用以下由12306实时查询得到的候选班次，班次、站点、时间、价格和余票必须完全一致；如果数据不足请直接说明，不要编造：${JSON.stringify(card)}。` }, ...messages];
 }
 
@@ -81,14 +81,15 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
 
   app.post('/api/rail-tickets', async (req, res) => {
     const { chatRecords } = req.body ?? {};
-    const fromCity = '成都';
+    const fromCity = '\u82cf\u5dde';
     const toCity = extractDestinationCity(chatRecords);
     const date = extractTravelDate(chatRecords);
     if (!toCity || !date) return res.status(400).json({ error: '聊天记录中未识别到目的地城市或出发日期' });
     try {
       const tickets = await railwayQuery({ date, fromCity, toCity });
       if (!Array.isArray(tickets)) throw new Error('12306 未返回有效的车次数据，请更换日期后重试');
-      return res.json({ fromCity, toCity, tickets, options: normalizeRailTickets(tickets) });
+      const options = normalizeRailTickets(tickets).filter((item) => Number(String(item.price).replace(/[^\d.]/g, '')) <= 1500);
+      return res.json({ fromCity, toCity, tickets, options });
     } catch (error) {
       return res.status(502).json({ error: error.message || '12306 查询失败，请稍后重试' });
     }
@@ -144,7 +145,7 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
       let combinedContent = '';
       let sentLength = 0;
       const marker = transportOnly ? '<!--TRANSPORT_OPTIONS:' : hotelOnly ? '<!--HOTEL_OPTIONS:' : '';
-      for await (const event of requestCompletionStream(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, transportOnly), req.body?.hotelOptions, hotelOnly), { apiKey, fetchImpl, model })) {
+      for await (const event of requestCompletionStream(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, transportOnly), req.body?.hotelOptions, hotelOnly), { apiKey, fetchImpl, model, webSearch: transportOnly })) {
         if (transportOnly || hotelOnly) {
           combinedContent += event.content;
           const markerIndex = combinedContent.indexOf(marker);
