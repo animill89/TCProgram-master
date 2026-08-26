@@ -167,6 +167,7 @@ describe('App', () => {
       );
       expect(await screen.findByText(/G87/)).toBeInTheDocument();
       expect(screen.getByText(/CA1234/)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: '继续推荐酒店' })).toBeInTheDocument();
     });
   });
 });
