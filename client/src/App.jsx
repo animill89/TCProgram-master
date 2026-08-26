@@ -112,15 +112,14 @@ export default function App() {
     setDraft('');
     if (options.progress) setQueryProgress(options.progress);
     setIsPending(true);
+    let receivedContent = '';
     try {
       const result = await streamChat(requestMessages, {
         signal: controller.signal,
         transportCard: options.transportCard,
         transportOnly: options.transportOnly,
         hotelOptions: options.hotelOptions,
-        onDelta: (delta) => setMessages((current) => current.map((message) => (
-          message.id === assistantId ? { ...message, content: message.content + delta } : message
-        ))),
+        onDelta: (delta) => { receivedContent += delta; setMessages((current) => current.map((message) => (message.id === assistantId ? { ...message, content: message.content + delta } : message))); },
         onTransport: (transportOptions) => setMessages((current) => current.map((message) => (
           message.id === assistantId ? { ...message, transportOptions } : message
         ))),
@@ -131,9 +130,12 @@ export default function App() {
       if (options.transportOptions) setMessages((current) => current.map((message) => (
         message.id === assistantId ? { ...message, transportOptions: options.transportOptions } : message
       )));
-      if (options.hotelOptions) setMessages((current) => current.map((message) => (
-        message.id === assistantId ? { ...message, hotelOptions: options.hotelOptions } : message
-      )));
+      if (options.hotelOptions) {
+        const match = receivedContent.match(/<!--SELECTED_HOTEL_IDS:\s*(\[[\s\S]*?\])\s*-->/);
+        const selectedIds = match ? JSON.parse(match[1]) : [];
+        const hotelOptions = options.hotelOptions.filter((hotel) => selectedIds.includes(hotel.id)).sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id));
+        setMessages((current) => current.map((message) => (message.id === assistantId ? { ...message, content: message.content.replace(match?.[0] ?? '', '').trim(), hotelOptions } : message)));
+      }
     } catch (error) {
       if (error?.name !== 'AbortError') {
         setMessages((current) => current.map((message) => (

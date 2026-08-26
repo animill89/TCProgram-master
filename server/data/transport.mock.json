@@ -1,0 +1,6 @@
+[
+  { "id": "rail-cdq-001", "type": "高铁", "fromCity": "成都", "toCity": "上海", "date": "本周六", "train": "G2188", "departureTime": "07:18", "departureStation": "成都东", "arrivalTime": "18:42", "arrivalStation": "上海虹桥", "duration": "11小时24分", "price": "¥1048", "reason": "直达，价格在 1500 元预算内" },
+  { "id": "rail-cdq-002", "type": "高铁", "fromCity": "成都", "toCity": "上海", "date": "本周六", "train": "G3284", "departureTime": "09:05", "departureStation": "成都东", "arrivalTime": "20:50", "arrivalStation": "上海虹桥", "duration": "11小时45分", "price": "¥1128", "reason": "上午出发，抵达后方便换乘市区" },
+  { "id": "flight-cdq-001", "type": "飞机", "fromCity": "成都", "toCity": "上海", "date": "本周六", "train": "MU5412", "departureTime": "08:20", "departureStation": "成都天府", "arrivalTime": "11:05", "arrivalStation": "上海虹桥", "duration": "2小时45分", "price": "¥980", "reason": "飞行时间短，价格在预算内" },
+  { "id": "flight-cdq-002", "type": "飞机", "fromCity": "成都", "toCity": "上海", "date": "本周六", "train": "CA4531", "departureTime": "13:40", "departureStation": "成都双流", "arrivalTime": "16:30", "arrivalStation": "上海浦东", "duration": "2小时50分", "price": "¥1260", "reason": "下午出发，适合不想早起的人" }
+]

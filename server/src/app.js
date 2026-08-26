@@ -1,12 +1,14 @@
 import express from 'express';
+import { readFileSync } from 'node:fs';
 import { requestCompletion, requestCompletionStream, validateMessages } from './chat.js';
-import { queryRailTickets } from './railway.js';
-import { queryHotels } from './hotel.js';
-import { extractDestinationCity, extractTravelDate, normalizeRailTickets } from './travel.js';
+import { extractDestinationCity } from './travel.js';
+
+const transportMock = JSON.parse(readFileSync(new URL('../data/transport.mock.json', import.meta.url)));
+const hotelMock = JSON.parse(readFileSync(new URL('../data/hotels.mock.json', import.meta.url)));
 
 function withTransportInstruction(messages, card, transportOnly = false) {
   if (!card && !transportOnly) return messages;
-  if (transportOnly) return [{ role: 'system', content: `你是交通推荐助手。出发地固定为成都，目的地从聊天记录识别；仅输出交通推荐，不得输出行程、酒店或反问。以下是12306 MCP 已筛选出的预算内真实高铁数据，必须原样用于高铁卡片：${JSON.stringify(card ?? [])}。再使用联网搜索补充预算内的参考机票；机票仅展示预算内候选，并在理由标注“参考价格，以购票页为准”。回复末尾附加一次 <!--TRANSPORT_OPTIONS:[{"type":"高铁或飞机","train":"车次或航班号","date":"出发日期","departureTime":"HH:mm","departureStation":"出发站或机场","arrivalTime":"HH:mm","arrivalStation":"到达站或机场","duration":"时长","price":"价格","reason":"推荐理由"}]-->。` }, ...messages];
+  if (transportOnly) return [{ role: 'system', content: `你是交通推荐助手。出发地固定为成都，目的地从聊天记录识别；仅输出交通推荐，不得输出行程、酒店或反问。只从以下 mock 候选中筛选预算内最合适的 2 至 3 项，不得编造：${JSON.stringify(card ?? [])}。给出清晰的推荐理由。回复末尾附加一次 <!--TRANSPORT_OPTIONS:[{"id":"mock唯一标识","type":"高铁或飞机","train":"车次或航班号","date":"出发日期","departureTime":"HH:mm","departureStation":"出发站或机场","arrivalTime":"HH:mm","arrivalStation":"到达站或机场","duration":"时长","price":"价格","reason":"推荐理由"}]-->。` }, ...messages];
   return [{ role: 'system', content: `你是交通推荐助手。只输出前往目的地的高铁推荐，不生成飞机、行程、酒店或其他方案。优先遵循聊天中已提及的交通方式。只使用以下由12306实时查询得到的候选班次，班次、站点、时间、价格和余票必须完全一致；如果数据不足请直接说明，不要编造：${JSON.stringify(card)}。` }, ...messages];
 }
 
@@ -25,7 +27,7 @@ function extractTransportResult(content) {
 function withHotelInstruction(messages, hotels, hotelOnly = false) {
   if (!hotels && !hotelOnly) return messages;
   if (hotelOnly) return [{ role: 'system', content: '仅输出酒店、房型、距离和推荐理由，不输出交通、行程或反问。先用固定中文模板给出推荐；随后在回复最后单独输出且只输出一次 JSON 代码块：```json\n{"hotelCards":[{"id":"唯一标识","name":"酒店名","room":"明确房型或房型以预订页为准","distance":"距离地铁、商圈或景点","reason":"推荐理由","price":"¥价格/晚或价格以预订页为准","bookingUrl":"预订链接或空字符串"}]}\n```。酒店正文与 hotelCards 必须完全一致；没有候选时 hotelCards 为 []。' }, ...messages];
-  return [{ role: 'system', content: `只输出酒店推荐、对应房型、距离提示和推荐理由，不输出交通或行程。只推荐靠近地铁站或商圈、且每晚价格不超过700元的房型。仅使用以下数据并保持一致：${JSON.stringify(hotels)}。` }, ...messages];
+  return [{ role: 'system', content: `只输出酒店推荐、对应房型、距离提示和推荐理由，不输出交通或行程。先写“筛选依据”：结合聊天记录逐项说明预算、外滩夜游、迪士尼接送、虹桥返程和多人入住需求如何影响选择；再用“未优先选择的候选”简要说明至少两家不推荐的具体原因。随后推荐最符合需求且每晚不超过700元的 2 至 3 家。最后附加一次 <!--SELECTED_HOTEL_IDS:["mock唯一id"]-->，只填写最终推荐的酒店 ID，顺序即卡片顺序。仅使用以下 mock 数据，酒店名、房型、价格和理由必须保持一致，不得编造：${JSON.stringify(hotels)}。` }, ...messages];
 }
 
 function extractHotelResult(content) {
@@ -75,39 +77,25 @@ function fillHotelOptions(options, place) {
   return [...options, ...mockHotels].slice(0, 3);
 }
 
-export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flash', railwayQuery = queryRailTickets, hotelQuery = queryHotels, rollingGoApiKey = process.env.ROLLINGGO_API_KEY } = {}) {
+export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flash' } = {}) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 
   app.post('/api/rail-tickets', async (req, res) => {
     const { chatRecords } = req.body ?? {};
-    const fromCity = '\u82cf\u5dde';
+    const fromCity = '\u6210\u90fd';
     const toCity = extractDestinationCity(chatRecords);
-    const date = extractTravelDate(chatRecords);
-    if (!toCity || !date) return res.status(400).json({ error: '聊天记录中未识别到目的地城市或出发日期' });
-    try {
-      const tickets = await railwayQuery({ date, fromCity, toCity });
-      if (!Array.isArray(tickets)) throw new Error('12306 未返回有效的车次数据，请更换日期后重试');
-      const options = normalizeRailTickets(tickets).filter((item) => Number(String(item.price).replace(/[^\d.]/g, '')) <= 1500);
-      return res.json({ fromCity, toCity, tickets, options });
-    } catch (error) {
-      return res.status(502).json({ error: error.message || '12306 查询失败，请稍后重试' });
-    }
+    if (!toCity) return res.status(400).json({ error: '聊天记录中未识别到目的地城市' });
+    const options = transportMock.filter((item) => item.fromCity === fromCity && item.toCity === toCity && Number(item.price.replace(/[^\d.]/g, '')) <= 1500);
+    return res.json({ fromCity, toCity, tickets: options, options });
   });
 
   app.post('/api/hotels', async (req, res) => {
     const { chatRecords } = req.body ?? {};
     const destination = extractDestinationCity(chatRecords);
-    const date = extractTravelDate(chatRecords);
-    if (!destination || !date) return res.status(400).json({ error: '聊天记录中未识别到目的地城市或入住日期' });
+    if (!destination) return res.status(400).json({ error: '聊天记录中未识别到目的地城市' });
     const place = inferHotelPlace(chatRecords, destination);
-    try {
-      const options = await hotelQuery({ apiKey: rollingGoApiKey, date, place, originQuery: chatRecords });
-      if (!Array.isArray(options) || options.length === 0) throw new Error('未查询到符合预算的酒店与房型');
-      return res.json({ place, options: fillHotelOptions(options, place) });
-    } catch (error) {
-      return res.status(502).json({ error: error.message || '酒店查询失败，请稍后重试' });
-    }
+    return res.json({ place, options: hotelMock.filter((item) => item.city === destination) });
   });
 
   app.post('/api/chat', async (req, res) => {
