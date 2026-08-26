@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
@@ -111,31 +111,37 @@ describe('App', () => {
 
     it('长按消息进入多选模式并默认选中该消息', async () => {
       vi.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<App />);
       const message = screen.getAllByRole('article', { name: '消息' })[0];
 
-      await user.pointer({ target: message, keys: '[MouseLeft>]' });
-      vi.advanceTimersByTime(600);
-      await user.pointer({ target: message, keys: '[/MouseLeft]' });
+      fireEvent.pointerDown(message);
+      act(() => vi.advanceTimersByTime(300));
+      fireEvent.pointerUp(message);
 
       expect(screen.getByText(/已选择 1 条/)).toBeInTheDocument();
       expect(message).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getAllByRole('checkbox')[0]).toBeChecked();
       vi.useRealTimers();
     });
 
     it('点击消息可切换选中状态', async () => {
+      vi.useFakeTimers();
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
 
       fireEvent.pointerDown(messages[0]);
+      act(() => vi.advanceTimersByTime(300));
       fireEvent.pointerUp(messages[0]);
+      fireEvent.click(messages[0]);
       fireEvent.click(messages[1]);
 
       expect(messages[0]).toHaveAttribute('aria-checked', 'true');
       expect(messages[1]).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getAllByRole('checkbox')[1]).toBeChecked();
       fireEvent.click(messages[0]);
       expect(messages[0]).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getAllByRole('checkbox')[0]).not.toBeChecked();
+      vi.useRealTimers();
     });
 
     it('分享给 AI 时按原始顺序把选中消息带入 prompt', async () => {
@@ -143,17 +149,20 @@ describe('App', () => {
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
 
+      vi.useFakeTimers();
       fireEvent.pointerDown(messages[1]);
+      act(() => vi.advanceTimersByTime(300));
       fireEvent.pointerUp(messages[1]);
       fireEvent.click(messages[0]);
+      vi.useRealTimers();
       await userEvent.setup().click(screen.getByRole('button', { name: '分享给 AI' }));
 
       await waitFor(() => expect(streamChat).toHaveBeenCalled());
       const sentMessages = streamChat.mock.calls[0][0];
       expect(sentMessages[0].role).toBe('user');
       expect(sentMessages[0].content).toMatch(/请分析以下旅行群聊记录/);
-      expect(sentMessages[0].content.indexOf(messages[0].textContent)).toBeLessThan(
-        sentMessages[0].content.indexOf(messages[1].textContent),
+      expect(sentMessages[0].content.indexOf('我们10月1日国庆节去西安旅游吧！！')).toBeLessThan(
+        sentMessages[0].content.indexOf('我们6个人每人大概1500预算谁去规划一下旅行计划呢？'),
       );
     });
   });

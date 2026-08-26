@@ -21,9 +21,11 @@ const discoveries = [
 ];
 
 const groupMessages = [
-  { id: 'g1', senderName: '小林', content: '国庆要不要去杭州？', timestamp: '20:41' },
-  { id: 'g2', senderName: '阿杰', content: '可以！我们一共 6 个人，预算人均 2000。', timestamp: '20:42' },
-  { id: 'g3', senderName: '小周', content: '想去西湖和灵隐寺，最好坐高铁。', timestamp: '20:43' },
+  { id: 'g1', senderName: '用户A', content: '我们10月1日国庆节去西安旅游吧！！', timestamp: '20:41' },
+  { id: 'g2', senderName: '用户B', content: '我们6个人每人大概1500预算谁去规划一下旅行计划呢？', timestamp: '20:42' },
+  { id: 'g3', senderName: '用户C', content: '还有酒店定哪一家的？有没有什么什么推荐的', timestamp: '20:43' },
+  { id: 'g4', senderName: '用户D', content: '现在同城旅行的程心AI不是很火嘛，让群主将我们的需求发个它让它推荐吧！', timestamp: '20:44' },
+  { id: 'g5', senderName: '我', content: '好的', timestamp: '20:45' },
 ];
 
 function GroupChat({ onShare }) {
@@ -32,19 +34,26 @@ function GroupChat({ onShare }) {
   const [selected, setSelected] = useState([]);
   const [selecting, setSelecting] = useState(false);
   const timers = useRef(new Map());
-  const skipClick = useRef(false);
+  const longPressedMessageId = useRef(null);
   const toggle = (id) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   const startLongPress = (id) => {
-    timers.current.set(id, setTimeout(() => { setSelecting(true); setSelected((current) => current.includes(id) ? current : [...current, id]); }, 500));
+    if (selecting) return;
+    longPressedMessageId.current = null;
+    timers.current.set(id, setTimeout(() => {
+      longPressedMessageId.current = id;
+      setSelecting(true);
+      setSelected((current) => current.includes(id) ? current : [...current, id]);
+    }, 300));
   };
-  const endLongPress = (id) => { const timer = timers.current.get(id); clearTimeout(timer); timers.current.delete(id); if (!selecting) { setSelecting(true); setSelected((current) => current.includes(id) ? current : [...current, id]); } skipClick.current = true; };
+  const endLongPress = (id) => { const timer = timers.current.get(id); clearTimeout(timer); timers.current.delete(id); };
+  const cancelLongPress = (id) => { const timer = timers.current.get(id); clearTimeout(timer); timers.current.delete(id); };
   const share = () => {
     const content = chatMessages.filter((message) => selected.includes(message.id)).map((message) => `[${message.senderName} ${message.timestamp}] ${message.content}`).join('\n');
     onShare(`请分析以下旅行群聊记录，提取目的地、出行日期、人数、预算、交通方式和成员偏好；指出冲突或缺失信息，并给出下一步建议。\n\n群聊记录：\n${content}`);
   };
-  return <><style>{`.group-message--self::before{left:auto!important;right:-42px!important}.group-message--self .group-message__author{text-align:right}`}</style><section className="group-chat" aria-label="旅行群聊" style={{ margin: '0 -18px', padding: '52px 18px 76px', minHeight: '100dvh' }}>
+  return <><style>{`.group-message--self::before{left:auto!important;right:-42px!important}.group-message--self .group-message__author{text-align:right}`}</style><section className={`group-chat ${selecting ? 'group-chat--selecting' : ''}`} aria-label="旅行群聊" style={{ margin: '0 -18px', minHeight: '100dvh' }}>
     <header className="group-chat__header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10, margin: 0, width: '100%', background: '#f7f7f7' }}>{selecting ? <><button type="button" onClick={() => { setSelecting(false); setSelected([]); }}>取消</button><strong>已选择 {selected.length} 条消息</strong><span aria-hidden="true">⌕</span></> : <h1>旅行群聊（6 人）</h1>}</header>
-    {chatMessages.map((message) => <article key={message.id} role="article" aria-label="消息" aria-checked={selected.includes(message.id)} className={`group-message ${message.senderName === '我' ? 'group-message--self' : ''} ${selected.includes(message.id) ? 'group-message--selected' : ''}`} style={message.senderName === '我' ? { marginLeft: 'auto', marginRight: 48, background: '#95ec69', textAlign: 'right' } : undefined} onPointerDown={() => startLongPress(message.id)} onPointerUp={() => endLongPress(message.id)} onPointerLeave={() => endLongPress(message.id)} onClick={() => { if (skipClick.current) { skipClick.current = false; return; } if (selecting) toggle(message.id); }}><span className="group-message__author">{message.senderName} · {message.timestamp}</span><p>{message.content}</p></article>)}
+    {chatMessages.map((message) => <div className="group-message-row" key={message.id}>{selecting && <input className="group-message__checkbox" type="checkbox" aria-label="选择消息" checked={selected.includes(message.id)} readOnly onClick={() => toggle(message.id)} />}<article role="article" aria-label="消息" aria-checked={selected.includes(message.id)} className={`group-message ${message.senderName === '我' ? 'group-message--self' : ''} ${selected.includes(message.id) ? 'group-message--selected' : ''}`} style={message.senderName === '我' ? { marginLeft: 'auto', marginRight: 48, background: '#95ec69', textAlign: 'right' } : undefined} onPointerDown={() => startLongPress(message.id)} onPointerUp={() => endLongPress(message.id)} onPointerLeave={() => cancelLongPress(message.id)} onPointerCancel={() => cancelLongPress(message.id)} onClick={() => { if (longPressedMessageId.current === message.id) { longPressedMessageId.current = null; return; } if (selecting) toggle(message.id); }}>{message.senderName !== '我' && <span className="group-message__author">{message.senderName} · {message.timestamp}</span>}<p>{message.content}</p></article></div>)}
     {selecting ? <div className="group-actions"><button type="button" onClick={share} disabled={!selected.length} aria-label="分享给 AI">↗<small>分享给 AI</small></button><button type="button" aria-label="复制">▣</button><button type="button" aria-label="收藏">◇</button><button type="button" aria-label="删除">♧</button><button type="button" aria-label="更多">✉</button></div> : <form className="group-composer" onSubmit={(event) => { event.preventDefault(); if (draft.trim()) { setChatMessages((items) => [...items, { id: `g-${Date.now()}`, senderName: '我', timestamp: '现在', content: draft.trim() }]); setDraft(''); } }}><input aria-label="群聊消息输入框" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="输入消息" /><button type="submit">发送</button></form>}
   </section></>;
 }
