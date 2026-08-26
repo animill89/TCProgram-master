@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { fetchHotels, fetchRailTickets, streamChat } from './api.js';
+import { fetchHotels, streamChat } from './api.js';
 import './App.css';
 import './H5-fixes.css';
 import './GroupChat.css';
@@ -68,7 +68,7 @@ function MessageBubble({ message, onContinueHotel }) {
       : message.role === 'user' ? <p>{message.content}</p> : null}
     {message.error && <p className="message__error">{message.error}</p>}
     {message.transportOptions?.map((option) => <section className="train-card" aria-label={`${option.type}班次推荐`} key={option.train}><b>{option.type}推荐 · {option.reason}</b><div><strong>{option.departureTime}</strong><span>{option.departureStation}</span><em>{option.train} · {option.duration}</em><strong>{option.arrivalTime}</strong><span>{option.arrivalStation}</span><i>{option.price}</i></div><small>{option.date} · 单程</small><button type="button">订票</button></section>)}
-    {message.transportOptions && <a href="#hotel-recommendations" onClick={(event) => { event.preventDefault(); onContinueHotel(); }}>继续推荐酒店</a>}
+    {message.role === 'assistant' && message.content && !message.hotelOptions && <a href="#hotel-recommendations" onClick={(event) => { event.preventDefault(); onContinueHotel(); }}>继续推荐酒店</a>}
     {message.hotelOptions?.map((hotel) => <section className="hotel-card" aria-label="酒店推荐" key={hotel.name}><b>{hotel.distance}</b><h3>{hotel.name}</h3><p>{hotel.reason}</p><strong>{hotel.room}</strong><i>{hotel.price}</i><button type="button">订房</button></section>)}
   </article>;
 }
@@ -112,9 +112,13 @@ export default function App() {
       await streamChat(requestMessages, {
         signal: controller.signal,
         transportCard: options.transportCard,
+        transportOnly: options.transportOnly,
         hotelOptions: options.hotelOptions,
         onDelta: (delta) => setMessages((current) => current.map((message) => (
           message.id === assistantId ? { ...message, content: message.content + delta } : message
+        ))),
+        onTransport: (transportOptions) => setMessages((current) => current.map((message) => (
+          message.id === assistantId ? { ...message, transportOptions } : message
         ))),
       });
       if (options.transportOptions) setMessages((current) => current.map((message) => (
@@ -134,23 +138,12 @@ export default function App() {
       setIsPending(false);
     }
   };
-  const openAiWithPrompt = async ({ content, count }) => {
+  const openAiWithPrompt = ({ content, count }) => {
     const visibleContent = `已分享 ${count} 条聊天记录\n帮我制定旅行规划`;
     window.history.pushState({}, '', '/ai');
     setRoute('/ai');
     setSharedRecords(content);
-    setPendingShare(visibleContent);
-    setIsPreparing(true);
-    try {
-      const { options } = await fetchRailTickets(content);
-      setPendingShare('');
-      submit(content, { visibleContent, transportCard: options, transportOptions: options });
-    } catch (error) {
-      setMessages([{ role: 'user', content: visibleContent }, { id: `assistant-${++messageSequence.current}`, role: 'assistant', content: '', error: error.message }]);
-      setPendingShare('');
-    } finally {
-      setIsPreparing(false);
-    }
+    submit(content, { visibleContent, transportOnly: true });
   };
   const continueHotel = async () => {
     if (!sharedRecords || isPending) return;

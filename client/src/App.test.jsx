@@ -144,12 +144,11 @@ describe('App', () => {
       vi.useRealTimers();
     });
 
-    it('分享给 AI 时按原始顺序把选中消息带入 prompt', async () => {
-      fetchRailTickets.mockResolvedValue({ options: [{
-        type: '高铁', train: 'G1', date: '10月1日', departureTime: '08:00', departureStation: '苏州',
-        arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票，¥39，符合人均1500元预算',
-      }] });
-      streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('已收到旅行讨论'));
+    it('分享给 AI 时按原始顺序把选中消息直接带入联网 AI，且不预取车次', async () => {
+      streamChat.mockImplementation(async (_messages, { onDelta, onTransport }) => {
+        onDelta('已收到旅行讨论');
+        onTransport([{ type: '高铁', train: 'G1', date: '10月1日', departureTime: '08:00', departureStation: '苏州', arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '符合预算' }]);
+      });
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
 
@@ -165,22 +164,22 @@ describe('App', () => {
       const sentMessages = streamChat.mock.calls[0][0];
       expect(sentMessages[0].role).toBe('user');
       expect(sentMessages[0].content).not.toMatch(/请分析以下旅行群聊记录/);
-      expect(fetchRailTickets).toHaveBeenCalledWith(expect.stringContaining('去上海玩吧'));
-      expect(streamChat.mock.calls[0][1].transportCard[0].train).toBe('G1');
+      expect(fetchRailTickets).not.toHaveBeenCalled();
+      expect(streamChat.mock.calls[0][1].transportCard).toBeUndefined();
+      expect(streamChat.mock.calls[0][1].transportOnly).toBe(true);
       expect(sentMessages[0].content.indexOf('国庆去上海玩吧！我查了机票还行')).toBeLessThan(
         sentMessages[0].content.indexOf('高铁吧，飞机延误怕了'),
       );
-      expect(await screen.findByText(/G1/)).toBeInTheDocument();
+      expect(await screen.findByLabelText('高铁班次推荐')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: '继续推荐酒店' })).toBeInTheDocument();
       fetchHotels.mockResolvedValue({ options: [] });
       await userEvent.setup().click(screen.getByRole('link', { name: '继续推荐酒店' }));
       await waitFor(() => expect(fetchHotels).toHaveBeenCalled());
     });
 
-    it('在查询车次期间展示 AI 思考中的加载状态', async () => {
-      let resolveTickets;
-      fetchRailTickets.mockImplementation(() => new Promise((resolve) => { resolveTickets = resolve; }));
-      streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('已收到旅行讨论'));
+    it('联网 AI 请求期间展示 AI 思考中的加载状态，且不预取车次', async () => {
+      let resolveChat;
+      streamChat.mockImplementation(() => new Promise((resolve) => { resolveChat = resolve; }));
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
 
@@ -194,12 +193,12 @@ describe('App', () => {
       expect(await screen.findByText(/已分享 1 条聊天记录/)).toBeInTheDocument();
       expect(await screen.findByText('AI 思考中…')).toBeInTheDocument();
       expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
-      resolveTickets({ options: [{ type: '高铁', train: 'G1', date: '8月29日', departureTime: '08:00', departureStation: '苏州', arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票' }] });
       await waitFor(() => expect(streamChat).toHaveBeenCalled());
+      expect(fetchRailTickets).not.toHaveBeenCalled();
+      resolveChat();
     });
 
     it('在查询酒店期间展示继续推荐酒店和思考状态', async () => {
-      fetchRailTickets.mockResolvedValue({ options: [{ type: '高铁', train: 'G1', date: '8月29日', departureTime: '08:00', departureStation: '苏州', arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票' }] });
       streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('交通推荐完成'));
       let resolveHotels;
       fetchHotels.mockImplementation(() => new Promise((resolve) => { resolveHotels = resolve; }));

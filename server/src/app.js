@@ -4,9 +4,23 @@ import { queryRailTickets } from './railway.js';
 import { queryHotels } from './hotel.js';
 import { extractDestinationCity, extractTravelDate, normalizeRailTickets } from './travel.js';
 
-function withTransportInstruction(messages, card) {
-  if (!card) return messages;
+function withTransportInstruction(messages, card, transportOnly = false) {
+  if (!card && !transportOnly) return messages;
+  if (transportOnly) return [{ role: 'system', content: '你是交通推荐助手。出发地固定为苏州，目的地从聊天记录中识别；不得询问用户从哪里出发。仅输出苏州到目的地的交通推荐，不输出行程、酒店、景点、餐饮或其他内容。优先使用联网搜索的结果，推荐 2 至 3 种合适选择，可包含高铁和飞机，并说明预算适配理由。回复末尾必须附加且只附加一次以下 HTML 注释，数组每项字段必须完整：<!--TRANSPORT_OPTIONS:[{"type":"高铁或飞机","train":"车次或航班号","date":"出发日期","departureTime":"HH:mm","departureStation":"出发站或机场","arrivalTime":"HH:mm","arrivalStation":"到达站或机场","duration":"时长","price":"价格","reason":"推荐理由"}]-->。注释之外仅保留给用户看的交通说明；没有可靠候选时输出空数组，禁止编造。' }, ...messages];
   return [{ role: 'system', content: `你是交通推荐助手。只输出前往目的地的高铁推荐，不生成飞机、行程、酒店或其他方案。优先遵循聊天中已提及的交通方式。只使用以下由12306实时查询得到的候选班次，班次、站点、时间、价格和余票必须完全一致；如果数据不足请直接说明，不要编造：${JSON.stringify(card)}。` }, ...messages];
+}
+
+function extractTransportResult(content) {
+  const match = content.match(/<!--TRANSPORT_OPTIONS:(\[[\s\S]*?\])-->/);
+  if (!match) return { content, options: [] };
+  let options = [];
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (Array.isArray(parsed)) options = parsed.filter((option) => option && typeof option === 'object' && ['type', 'train', 'date', 'departureTime', 'departureStation', 'arrivalTime', 'arrivalStation', 'duration', 'price', 'reason'].every((key) => typeof option[key] === 'string'));
+  } catch {
+    options = [];
+  }
+  return { content: content.replace(match[0], '').trim(), options };
 }
 function withHotelInstruction(messages, hotels) {
   if (!hotels) return messages;
@@ -61,7 +75,7 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
     }
 
     try {
-      const message = await requestCompletion(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard), req.body?.hotelOptions), { apiKey, fetchImpl, model });
+      const message = await requestCompletion(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, req.body?.transportOnly), req.body?.hotelOptions), { apiKey, fetchImpl, model });
       return res.json({ message });
     } catch (error) {
       return res.status(error.status ?? 502).json({
@@ -84,8 +98,16 @@ export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flas
     res.flushHeaders();
 
     try {
-      for await (const event of requestCompletionStream(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard), req.body?.hotelOptions), { apiKey, fetchImpl, model })) {
-        res.write(`event: delta\ndata: ${JSON.stringify({ content: event.content })}\n\n`);
+      const transportOnly = Boolean(req.body?.transportOnly);
+      let combinedContent = '';
+      for await (const event of requestCompletionStream(withHotelInstruction(withTransportInstruction(validation.messages, req.body?.transportCard, transportOnly), req.body?.hotelOptions), { apiKey, fetchImpl, model })) {
+        if (transportOnly) combinedContent += event.content;
+        else res.write(`event: delta\ndata: ${JSON.stringify({ content: event.content })}\n\n`);
+      }
+      if (transportOnly) {
+        const result = extractTransportResult(combinedContent);
+        if (result.content) res.write(`event: delta\ndata: ${JSON.stringify({ content: result.content })}\n\n`);
+        res.write(`event: transport\ndata: ${JSON.stringify({ options: result.options })}\n\n`);
       }
       res.write('event: done\ndata: {}\n\n');
     } catch (error) {

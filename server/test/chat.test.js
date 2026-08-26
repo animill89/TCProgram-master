@@ -24,7 +24,7 @@ describe('POST /api/chat', () => {
 
   it('returns a normalized assistant message', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { role: 'assistant', content: '你好！' } }],
+      output: [{ type: 'message', content: [{ type: 'output_text', text: '你好！' }] }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     const app = createApp({ apiKey: 'test-key', fetchImpl });
 
@@ -37,6 +37,9 @@ describe('POST /api/chat', () => {
       message: { role: 'assistant', content: '你好！' },
     });
     expect(JSON.parse(fetchImpl.mock.calls[0][1].body).model).toBe('deepseek-v4-flash');
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://api.deepseek.com/responses');
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({ tools: [{ type: 'web_search' }], tool_choice: 'required' });
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).instructions).toContain('联网搜索结果优先');
   });
 
   it('rejects a message with an unsupported role', async () => {
@@ -99,11 +102,31 @@ describe('POST /api/chat', () => {
 });
 
 describe('POST /api/chat/stream', () => {
+  it('uses transport-only instructions for a shared chat and emits parsed transport cards after the text', async () => {
+    const options = [{ type: '高铁', train: 'G123', date: '10月1日', departureTime: '08:30', departureStation: '苏州北', arrivalTime: '10:15', arrivalStation: '上海虹桥', duration: '1小时45分', price: '¥89', reason: '符合预算' }];
+    const fetchImpl = vi.fn().mockResolvedValue(sseResponse([
+      `event: response.output_text.delta\ndata: ${JSON.stringify({ delta: `推荐高铁出行。<!--TRANSPORT_OPTIONS:${JSON.stringify(options)}-->` })}\n\n`,
+      'event: response.completed\ndata: {}\n\n',
+    ]));
+    const app = createApp({ apiKey: 'test-key', fetchImpl });
+
+    const response = await request(app).post('/api/chat/stream').send({
+      messages: [{ role: 'user', content: '[用户A] 国庆去上海' }],
+      transportOnly: true,
+    });
+
+    expect(response.text).toContain('推荐高铁出行。');
+    expect(response.text).not.toContain('TRANSPORT_OPTIONS');
+    expect(response.text).toContain(`event: transport\ndata: ${JSON.stringify({ options })}`);
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).input[0].content).toContain('不输出行程');
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).input[0].content).toContain('出发地固定为苏州');
+  });
+
   it('bridges DeepSeek chunks and sends done', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(sseResponse([
-      'data: {"choices":[{"delta":{"content":"# 苏"}}]}\n\n',
-      'data: {"choices":[{"delta":{"content":"州"}}]}\n\n',
-      'data: [DONE]\n\n',
+      'event: response.output_text.delta\ndata: {"delta":"# 苏"}\n\n',
+      'event: response.output_text.delta\ndata: {"delta":"州"}\n\n',
+      'event: response.completed\ndata: {}\n\n',
     ]));
     const app = createApp({ apiKey: 'test-key', fetchImpl });
 

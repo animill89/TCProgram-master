@@ -46,7 +46,7 @@ export async function fetchHotels(chatRecords) {
   return payload;
 }
 
-export async function streamChat(messages, { signal, onDelta, transportCard, hotelOptions }) {
+export async function streamChat(messages, { signal, onDelta, onTransport, transportCard, transportOnly, hotelOptions }) {
   let response;
   try {
     response = await fetch('/api/chat/stream', {
@@ -55,7 +55,7 @@ export async function streamChat(messages, { signal, onDelta, transportCard, hot
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
-      body: JSON.stringify({ messages, transportCard, hotelOptions }),
+      body: JSON.stringify({ messages, transportCard, transportOnly, hotelOptions }),
       signal,
     });
   } catch (error) {
@@ -96,6 +96,10 @@ export async function streamChat(messages, { signal, onDelta, transportCard, hot
     }
     if (event === 'error') {
       throw new Error(payload.message || 'AI 服务暂时不可用，请稍后重试。');
+    }
+    if (event === 'transport') {
+      if (Array.isArray(payload.options)) onTransport?.(payload.options);
+      return false;
     }
     return event === 'done';
   };
