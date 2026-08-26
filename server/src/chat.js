@@ -1,4 +1,12 @@
 const API_URL = 'https://api.deepseek.com/chat/completions';
+const DEFAULT_MODEL = 'deepseek-v4-flash';
+
+function upstreamErrorMessage(status) {
+  if (status === 401 || status === 403) return 'AI 服务鉴权失败，请检查 API Key 配置。';
+  if (status === 404) return '当前配置的 AI 模型不可用，请联系管理员更新模型配置。';
+  if (status === 402 || status === 429) return 'AI 服务额度不足或请求过于频繁，请稍后重试。';
+  return 'AI 服务暂时不可用，请稍后重试。';
+}
 
 export function validateMessages(messages) {
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -30,7 +38,7 @@ export function validateMessages(messages) {
   return { ok: true, messages: normalized };
 }
 
-export async function requestCompletion(messages, { apiKey, fetchImpl, model = 'deepseek-chat' }) {
+export async function requestCompletion(messages, { apiKey, fetchImpl, model = DEFAULT_MODEL }) {
   if (!apiKey) {
     throw { status: 500, message: '服务端尚未配置 DeepSeek API Key。' };
   }
@@ -49,9 +57,7 @@ export async function requestCompletion(messages, { apiKey, fetchImpl, model = '
     throw { status: 503, message: '无法连接 AI 服务，请稍后重试。' };
   }
 
-  if (!response.ok) {
-    throw { status: 502, message: 'AI 服务暂时不可用，请稍后重试。' };
-  }
+  if (!response.ok) throw { status: 502, message: upstreamErrorMessage(response.status) };
 
   let payload;
   try {
@@ -68,7 +74,7 @@ export async function requestCompletion(messages, { apiKey, fetchImpl, model = '
   return { role: 'assistant', content: content.trim() };
 }
 
-export async function* requestCompletionStream(messages, { apiKey, fetchImpl, model = 'deepseek-chat' }) {
+export async function* requestCompletionStream(messages, { apiKey, fetchImpl, model = DEFAULT_MODEL }) {
   if (!apiKey) {
     throw { status: 500, message: '服务端尚未配置 DeepSeek API Key。' };
   }
@@ -87,9 +93,8 @@ export async function* requestCompletionStream(messages, { apiKey, fetchImpl, mo
     throw { status: 503, message: '无法连接 AI 服务，请稍后重试。' };
   }
 
-  if (!response.ok || !response.body) {
-    throw { status: 502, message: 'AI 服务暂时不可用，请稍后重试。' };
-  }
+  if (!response.ok) throw { status: 502, message: upstreamErrorMessage(response.status) };
+  if (!response.body) throw { status: 502, message: 'AI 服务暂时不可用，请稍后重试。' };
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

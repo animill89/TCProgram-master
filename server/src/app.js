@@ -12,7 +12,7 @@ function withHotelInstruction(messages, hotels) {
   return [{ role: 'system', content: `只输出酒店推荐、对应房型、距离提示和推荐理由，不输出交通或行程。只推荐靠近地铁站或商圈、且每晚价格不超过700元的房型。仅使用以下数据并保持一致：${JSON.stringify(hotels)}。` }, ...messages];
 }
 
-export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-chat', railwayQuery = queryRailTickets } = {}) {
+export function createApp({ apiKey, fetchImpl = fetch, model = 'deepseek-v4-flash', railwayQuery = queryRailTickets } = {}) {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 

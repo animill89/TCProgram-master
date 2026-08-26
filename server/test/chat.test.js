@@ -36,6 +36,7 @@ describe('POST /api/chat', () => {
     expect(response.body).toEqual({
       message: { role: 'assistant', content: '你好！' },
     });
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).model).toBe('deepseek-v4-flash');
   });
 
   it('rejects a message with an unsupported role', async () => {
@@ -60,7 +61,7 @@ describe('POST /api/chat', () => {
     expect(response.body.error).toBe('服务端尚未配置 DeepSeek API Key。');
   });
 
-  it('hides an upstream failure behind a safe error', async () => {
+  it('explains an upstream authentication failure without exposing details', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response('Unauthorized', { status: 401 }));
     const app = createApp({ apiKey: 'test-key', fetchImpl });
 
@@ -69,7 +70,7 @@ describe('POST /api/chat', () => {
     });
 
     expect(response.status).toBe(502);
-    expect(response.body.error).toBe('AI 服务暂时不可用，请稍后重试。');
+    expect(response.body.error).toBe('AI 服务鉴权失败，请检查 API Key 配置。');
   });
 
   it('maps network failures to a retryable error', async () => {
@@ -156,6 +157,18 @@ describe('POST /api/rail-tickets', () => {
       toCity: '上海',
       date: '2026-10-01',
     }));
+  });
+
+  it('explains when the configured model is unavailable', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response('model not found', { status: 404 }));
+    const app = createApp({ apiKey: 'test-key', fetchImpl });
+
+    const response = await request(app).post('/api/chat').send({
+      messages: [{ role: 'user', content: '你好' }],
+    });
+
+    expect(response.status).toBe(502);
+    expect(response.body.error).toBe('当前配置的 AI 模型不可用，请联系管理员更新模型配置。');
   });
 
   it('treats an MCP error string as a failed ticket query', async () => {

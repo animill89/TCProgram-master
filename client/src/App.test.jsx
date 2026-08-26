@@ -175,7 +175,9 @@ describe('App', () => {
     });
 
     it('在查询车次期间展示 AI 思考中的加载状态', async () => {
-      fetchRailTickets.mockImplementation(() => new Promise(() => {}));
+      let resolveTickets;
+      fetchRailTickets.mockImplementation(() => new Promise((resolve) => { resolveTickets = resolve; }));
+      streamChat.mockImplementation(async (_messages, { onDelta }) => onDelta('已收到旅行讨论'));
       render(<App />);
       const messages = screen.getAllByRole('article', { name: '消息' });
 
@@ -186,8 +188,11 @@ describe('App', () => {
       vi.useRealTimers();
       await userEvent.setup().click(screen.getByRole('button', { name: '分享给 AI' }));
 
+      expect(await screen.findByText(/已分享 1 条聊天记录/)).toBeInTheDocument();
       expect(await screen.findByText('AI 思考中…')).toBeInTheDocument();
       expect(screen.getByRole('status', { name: 'AI 思考中' })).toBeInTheDocument();
+      resolveTickets({ options: [{ type: '高铁', train: 'G1', date: '8月29日', departureTime: '08:00', departureStation: '苏州', arrivalTime: '09:00', arrivalStation: '上海', duration: '1小时', price: '¥39', reason: '二等座有票' }] });
+      await waitFor(() => expect(streamChat).toHaveBeenCalled());
     });
   });
 });
